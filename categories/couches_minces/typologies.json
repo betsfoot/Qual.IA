@@ -1,0 +1,18 @@
+{
+  "antireflet_double_face": {
+    "BBAR-5L": {
+      "nom": "BBAR 5 couches ",
+      "stack": [
+        "XO2",
+        "YO2",
+        "YO2",
+        "XO2",
+        "YO2"
+      ],
+      "outillage": "Posage nitrile",
+      "methodologie": "",
+      "gamme_application": "",
+      "notes": ""
+    }
+  }
+}

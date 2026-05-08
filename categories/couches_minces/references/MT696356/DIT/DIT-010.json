@@ -1,0 +1,67 @@
+{
+  "code": "DIT-010",
+  "titre": "DIT Op.10 — Réception matière : Contrôle visuel et dimensionnel entrant — Glace sphérique Saphir synthétique Ø29.00mm (Réf. MT696356)",
+  "operation_liee": "10",
+  "designation_operation": "Réception matière",
+  "revision": "A",
+  "redige_par": "",
+  "verifie_par": "",
+  "date_creation": "2026-05-06",
+  "epi_requis": [
+    "Gants blancs coton ou nitrile non poudrés (protection surface optique)",
+    "Blouse de travail antistatique",
+    "Lunettes de protection"
+  ],
+  "outillage_requis": [
+    "Pied à coulisse digital (résolution 0.01mm, étalonné)",
+    "Micromètre extérieur (résolution 0.001mm, étalonné)",
+    "Loupe ou lampe à lumière rasante pour contrôle visuel",
+    "Chiffon optique non pelucheux",
+    "Plan de référence produit MT696356",
+    "Certificat matière / certificat de conformité fournisseur"
+  ],
+  "etapes": [
+    {
+      "no": 1,
+      "instruction": "Récupérer le bon de livraison et vérifier que la référence produit (MT696356), la désignation (Glace sphérique Saphir synthétique Ø29.00mm) et la quantité livrée correspondent au bon de commande.",
+      "point_vigilance": "Tout écart de référence ou de quantité entraîne un blocage immédiat du lot — ne pas poursuivre le contrôle sans validation responsable."
+    },
+    {
+      "no": 2,
+      "instruction": "Vérifier la présence et la conformité du certificat matière fournisseur : contrôler que le matériau déclaré est bien du Saphir synthétique et que le traitement de surface (Métallisation Or + Antireflet simple face) est mentionné.",
+      "point_vigilance": "Sans certificat valide, placer le lot en quarantaine et alerter le responsable qualité."
+    },
+    {
+      "no": 3,
+      "instruction": "Enfiler les gants propres avant toute manipulation des pièces. Sortir délicatement une pièce de son emballage en la saisissant par la tranche, sans toucher les faces optiques.",
+      "point_vigilance": "Toute empreinte digitale ou rayure sur la face métallisée ou antireflet constitue un défaut rédhibitoire. Ne jamais poser la pièce sur une surface dure sans protection."
+    },
+    {
+      "no": 4,
+      "instruction": "Effectuer le contrôle visuel de chaque pièce sous lampe à lumière rasante : inspecter les deux faces (face métallisée Or et face antireflet) ainsi que le chanfrein périphérique. Rechercher tout défaut : éclat, fissure, rayure, point, inclusion, délaminage du dépôt.",
+      "point_vigilance": "Porter une attention particulière à la zone de dépôt métallique Or (risque de décollage) et à la face antireflet (sensible aux micro-rayures). Tout défaut visible entraîne le rejet de la pièce."
+    },
+    {
+      "no": 5,
+      "instruction": "Mesurer le diamètre extérieur de la pièce avec le pied à coulisse digital : effectuer 2 mesures croisées à 90° dans le plan du diamètre et noter les valeurs relevées sur la fiche de contrôle.",
+      "point_vigilance": "S'assurer que le pied à coulisse est à zéro avant mesure. Exercer une pression constante sans forcer sur la pièce en Saphir (matériau fragile)."
+    },
+    {
+      "no": 6,
+      "instruction": "Confirmer la mesure de diamètre au micromètre extérieur sur au moins 2 pièces par lot (ou 100% si lot ≤ 5 pièces) : la valeur doit être comprise entre Ø28.95mm et Ø29.05mm.",
+      "point_vigilance": "Utiliser uniquement des micromètres avec embouts adaptés (touches plates ou carbure) pour ne pas endommager la surface. Vérifier le zéro du micromètre sur cale étalon avant utilisation."
+    },
+    {
+      "no": 7,
+      "instruction": "Reporter toutes les valeurs mesurées (diamètres, observations visuelles) sur la fiche de contrôle réception associée au lot, en indiquant : date, opérateur, numéro de lot fournisseur, résultats de chaque pièce.",
+      "point_vigilance": "Ne pas arrondir les valeurs mesurées. Toute valeur hors tolérance doit être entourée et signalée immédiatement."
+    },
+    {
+      "no": 8,
+      "instruction": "Statuer sur le lot : si toutes les pièces sont conformes en dimensions (Ø29.0 ±0.05mm) et en aspect (aucun défaut visible), apposer l'étiquette VERTE 'CONFORME' sur le lot et le transmettre au stock. Si une ou plusieurs pièces sont non conformes, apposer l'étiquette ROUGE 'NON CONFORME', isoler le lot en zone quarantaine et ouvrir une fiche de non-conformité.",
+      "point_vigilance": "Ne jamais mélanger des pièces conformes et non conformes dans le même contenant. Le lot est accepté uniquement si 100% des pièces contrôlées sont conformes."
+    }
+  ],
+  "criteres_acceptation": "Toutes les pièces du lot doivent satisfaire simultanément les deux critères suivants : (1) Dimensionnel — Diamètre extérieur compris entre Ø28.95mm et Ø29.05mm, vérifié au pied à coulisse digital et confirmé au micromètre ; (2) Aspect — Aucun défaut visible sur les deux faces et la tranche : ni éclat, ni fissure, ni rayure, ni inclusion, ni délaminage du dépôt métallique Or ou du revêtement antireflet. La conformité du certificat matière fournisseur (nature Saphir synthétique + traitements déclarés) est également requise pour valider la réception.",
+  "notes_securite": "Manipulation de pièces en Saphir synthétique : matériau très dur (Mohs 9) mais cassant aux chocs — manipuler avec précaution pour éviter les éclats. Aucun produit chimique utilisé lors de cette opération. Maintenir la zone de réception propre et exempte de vibrations. Les instruments de mesure (pied à coulisse, micromètre) doivent être vérifiés et étalonnés conformément au planning métrologique en vigueur — vérifier la date d'étalonnage sur l'étiquette avant utilisation."
+}

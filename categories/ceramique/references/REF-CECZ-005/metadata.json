@@ -1,0 +1,27 @@
+{
+  "reference": "REF-CECZ-005",
+  "categorie": "ceramique",
+  "designation": "Cale zircone Y-TZP 5×5×1mm — rectification diamant",
+  "type_produit": "cale",
+  "matiere": "zircone_y_tzp",
+  "traitements": [
+    "rectif_diamant"
+  ],
+  "dimensions": {
+    "diametre_mm": 5.0,
+    "tolerance_diametre_mm": 0.01,
+    "epaisseur_mm": 1.0,
+    "tolerance_epaisseur_mm": 0.01
+  },
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-27",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A"
+}

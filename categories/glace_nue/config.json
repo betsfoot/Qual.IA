@@ -1,0 +1,72 @@
+{
+  "code": "glace_nue",
+  "nom": "Glace nue",
+  "icone": "🔍",
+  "description": "Glaces brutes (saphir, minéral, organique) — usinage, rectification, polissage avant traitements",
+  "expert_prompt": "Tu es un expert en qualité industrielle spécialisé dans l'usinage et le polissage de matériaux durs pour glaces horlogères : sciage diamant, rectification, polissage optique du saphir synthétique, du verre minéral et organique. Tu maîtrises les états de surface (Ra, Rz), les classes de planéité, les contrôles dimensionnels au pied à coulisse / micromètre / projecteur de profil, et les défauts spécifiques (rayures, éclats bordure, microfissures). Pas de traitements optiques sous vide à ce stade — c'est uniquement la fabrication de la glace brute prête à recevoir des couches minces.",
+
+  "criteres_similarite": {
+    "type_produit": {
+      "poids": 0.30,
+      "type_comparaison": "exact_match",
+      "description": "Forme du produit (ronde, rectangulaire, sphérique, etc.)"
+    },
+    "matiere": {
+      "poids": 0.25,
+      "type_comparaison": "exact_match",
+      "description": "Matière du substrat brut"
+    },
+    "qualite_polissage": {
+      "poids": 0.20,
+      "type_comparaison": "exact_match",
+      "description": "Niveau de polissage (poli optique / poli fin / dépoli / brut)"
+    },
+    "gamme_dimension": {
+      "poids": 0.15,
+      "type_comparaison": "diameter_range",
+      "description": "Tranche dimensionnelle"
+    },
+    "epaisseur": {
+      "poids": 0.10,
+      "type_comparaison": "numeric_proximity",
+      "description": "Proximité d'épaisseur"
+    }
+  },
+
+  "vocabulaire": {
+    "types_produit": {
+      "glace_brute_ronde": "Glace brute ronde",
+      "glace_brute_rectangulaire": "Glace brute rectangulaire",
+      "glace_brute_tonneau": "Glace brute tonneau",
+      "glace_brute_ovale": "Glace brute ovale",
+      "glace_brute_spherique": "Glace brute sphérique",
+      "glace_brute_box": "Glace brute box"
+    },
+    "matieres": {
+      "saphir_brut": "Saphir synthétique brut",
+      "mineral_brut": "Verre minéral brut",
+      "organique_brut": "Verre organique brut (PMMA)",
+      "quartz_brut": "Quartz brut"
+    },
+    "traitements": {
+      "poli_optique": "Poli optique (Ra ≤ 5nm)",
+      "poli_fin": "Poli fin (Ra ≤ 50nm)",
+      "depoli": "Dépoli matrice mate",
+      "chanfrein": "Chanfrein bordure",
+      "rodage_zone_joint": "Rodage zone joint",
+      "marquage_laser": "Marquage laser face arrière"
+    },
+    "familles_defaillance": ["geometrique", "surface", "integrite", "tracabilite"]
+  },
+
+  "champs_brief": {
+    "diametre_obligatoire": true,
+    "epaisseur_obligatoire": true,
+    "tolerance_diametre_default": 0.05,
+    "tolerance_epaisseur_default": 0.03,
+    "diametre_min": 5,
+    "diametre_max": 100,
+    "epaisseur_min": 0.5,
+    "epaisseur_max": 10
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "reference": "REF-AERO-RC-002",
+  "categorie": "aeronautique_reservoirs",
+  "designation": "Réservoir auxiliaire nourrice Alu 7075 — 45L — Hélicoptère lourd",
+  "type_produit": "reservoir_auxiliaire",
+  "matiere": "alu_7075",
+  "traitements": [
+    "anodisation_sulfurique",
+    "primaire_epoxy",
+    "revetement_interieur",
+    "rivetage_etanche",
+    "test_etancheite"
+  ],
+  "dimensions": {
+    "diametre_mm": 45,
+    "tolerance_diametre_mm": 0.5,
+    "epaisseur_mm": 1.5,
+    "tolerance_epaisseur_mm": 0.1
+  },
+  "exigences_speciales": "Montage démontable en champ — accès limité. Raccords auto-obturants. Conformité DO-160G section 7 vibrations. Masse max 8 kg vide.",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "date_creation": "2024-11-03",
+  "statut": "libere",
+  "redige_par": "S. Petit",
+  "approuve_par": "P. Fontaine",
+  "indice_revision": "A",
+  "workflow": {
+    "statut": "libere",
+    "ipr_max": 96,
+    "gates_requises": ["Vérification BT", "Approbation Qualité", "Validation Direction"],
+    "gates_completees": ["Vérification BT", "Approbation Qualité", "Validation Direction"],
+    "historique": [
+      {"action": "soumettre", "acteur": "S. Petit", "date": "2024-11-04T09:00:00", "commentaire": "Dossier Rev A initial"},
+      {"action": "approuver", "acteur": "R. Dubois", "date": "2024-11-05T10:30:00", "commentaire": "BT OK — rivetage validé"},
+      {"action": "approuver", "acteur": "P. Fontaine", "date": "2024-11-06T14:00:00", "commentaire": "Qualité OK"},
+      {"action": "approuver", "acteur": "C. Bernard", "date": "2024-11-07T09:00:00", "commentaire": "Direction OK"},
+      {"action": "liberer", "acteur": "P. Fontaine", "date": "2024-11-08T08:00:00", "commentaire": "Libéré pour production"}
+    ]
+  }
+}

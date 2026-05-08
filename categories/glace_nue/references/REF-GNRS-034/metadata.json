@@ -1,0 +1,29 @@
+{
+  "reference": "REF-GNRS-034",
+  "categorie": "glace_nue",
+  "designation": "Glace brute ronde saphir Ø34mm — poli optique",
+  "type_produit": "glace_brute_ronde",
+  "matiere": "saphir_brut",
+  "traitements": [
+    "poli_optique",
+    "chanfrein",
+    "rodage_zone_joint"
+  ],
+  "dimensions": {
+    "diametre_mm": 34.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 1.5,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-27",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A"
+}

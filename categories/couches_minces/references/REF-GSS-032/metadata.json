@@ -1,0 +1,28 @@
+{
+  "reference": "REF-GSS-032",
+  "designation": "Glace sphérique saphir Ø32mm — Or + AR double face",
+  "type_produit": "glace_spherique",
+  "matiere": "saphir",
+  "traitements": [
+    "metallisation_or",
+    "antireflet_double_face"
+  ],
+  "dimensions": {
+    "diametre_mm": 32.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 1.5,
+    "tolerance_epaisseur_mm": 0.03,
+    "rayon_courbure_mm": 15.0
+  },
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-26",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A"
+}

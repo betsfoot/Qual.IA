@@ -1,0 +1,88 @@
+# ─── Secrets & Variables d'environnement ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── Secrets Streamlit ────────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyw
+*.pyc
+*.egg
+*.egg-info/
+dist/
+build/
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.whl
+
+# ─── Dossiers générés localement ──────────────────────────────────────────────
+exports/
+backups/
+brouillons/
+
+# ─── Fichiers de config utilisateurs (sensibles) ──────────────────────────────
+config/users.json
+config/notifications.json
+
+# ─── Fichiers générés (exports) ───────────────────────────────────────────────
+exports/*.xlsx
+exports/*.pdf
+exports/*.pptx
+
+# ─── Environnements virtuels ──────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# ─── IDEs & éditeurs ──────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Tests & Coverage ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# ─── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── Médias lourds (non versionnés) ───────────────────────────────────────────
+*.mp4
+*.mov
+*.avi
+
+# ─── Fichiers sensibles locaux ────────────────────────────────────────────────
+identification.txt
+test_export.pdf

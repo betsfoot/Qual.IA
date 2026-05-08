@@ -1,0 +1,28 @@
+{
+  "reference": "REF-CEBA-010",
+  "categorie": "ceramique",
+  "designation": "Bague alumine 99% Ø10mm — rectification + polissage miroir",
+  "type_produit": "bague",
+  "matiere": "alumine_99",
+  "traitements": [
+    "rectif_diamant",
+    "polissage_miroir"
+  ],
+  "dimensions": {
+    "diametre_mm": 10.0,
+    "tolerance_diametre_mm": 0.02,
+    "epaisseur_mm": 3.0,
+    "tolerance_epaisseur_mm": 0.02
+  },
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-27",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A"
+}

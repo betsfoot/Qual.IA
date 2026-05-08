@@ -1,0 +1,108 @@
+{
+  "code": "couches_minces",
+  "nom": "Couches minces",
+  "icone": "🎨",
+  "description": "Glaces avec traitements optiques sous vide (métallisation, antireflets, miroir)",
+  "expert_prompt": "Tu es un expert en qualité industrielle spécialisé dans les traitements de surface sous vide pour glaces horlogères : sputtéring (CN, Or, Argent, Chrome), évaporation thermique PVD (antireflets multicouches SiO2/TiO2), nettoyage ultrason et plasma. Tu maîtrises les normes ISO sur la propreté en salle blanche, les contrôles spectrophotométriques, les tests d'adhérence cross-cut.",
+
+  "criteres_similarite": {
+    "type_produit": {
+      "poids": 0.20,
+      "type_comparaison": "exact_match",
+      "description": "Forme du produit (ronde, sphérique, box, etc.)"
+    },
+    "matiere": {
+      "poids": 0.25,
+      "type_comparaison": "exact_match",
+      "description": "Matière du substrat (saphir, minéral, organique) — critère discriminant majeur"
+    },
+    "traitement_metallisation": {
+      "poids": 0.25,
+      "type_comparaison": "metallisation_match",
+      "description": "Type de métallisation (CN, Or, Argent, Chrome…) — critère discriminant majeur"
+    },
+    "traitement_AR": {
+      "poids": 0.25,
+      "type_comparaison": "ar_levels",
+      "description": "Niveau d'antireflet (absent / simple face / double face) — critère discriminant majeur"
+    },
+    "gamme_dimension": {
+      "poids": 0.10,
+      "type_comparaison": "diameter_range",
+      "cle_dimension": "diametre_mm",
+      "description": "Tranche dimensionnelle (<30mm / 30-40mm / >40mm) + proximité"
+    },
+    "epaisseur": {
+      "poids": 0.05,
+      "type_comparaison": "numeric_proximity",
+      "cle_dimension": "epaisseur_mm",
+      "description": "Proximité d'épaisseur"
+    }
+  },
+
+  "vocabulaire": {
+    "types_produit": {
+      "glace_ronde": "Glace ronde",
+      "glace_rectangulaire": "Glace rectangulaire",
+      "glace_tonneau": "Glace tonneau",
+      "glace_ovale": "Glace ovale",
+      "glace_spherique": "Glace sphérique",
+      "glace_box": "Glace box"
+    },
+    "matieres": {
+      "saphir": "Saphir synthétique",
+      "mineral": "Verre minéral",
+      "organique": "Verre organique (acrylique)"
+    },
+    "traitements": {
+      "metallisation_CN": "Métallisation Chrome-Nickel (CN)",
+      "metallisation_or": "Métallisation Or",
+      "metallisation_argent": "Métallisation Argent",
+      "metallisation_platine": "Métallisation Platine",
+      "metallisation_ruthenium": "Métallisation Ruthénium",
+      "metallisation_chrome_clair": "Métallisation Chrome clair",
+      "antireflet_double_face": "Antireflet double face (AR)",
+      "antireflet_simple_face": "Antireflet simple face",
+      "traitement_dur": "Traitement dur (hardening)",
+      "mirroir": "Effet miroir",
+      "anti_rayure": "Anti-rayure",
+      "anti_uv": "Filtre UV",
+      "polarisant": "Polarisant"
+    },
+    "familles_defaillance": ["optique", "esthetique", "geometrique", "etancheite", "tracabilite"]
+  },
+
+  "champs_brief": {
+    "diametre_obligatoire": true,
+    "epaisseur_obligatoire": false,
+    "tolerance_diametre_default": 0.05,
+    "tolerance_epaisseur_default": 0.03,
+    "diametre_min": 10,
+    "diametre_max": 100,
+    "epaisseur_min": 0.1,
+    "epaisseur_max": 10
+  },
+
+  "parametres_numeriques": [
+    {
+      "cle": "diametre_mm",
+      "label": "Diamètre (mm)",
+      "obligatoire": true,
+      "min": 10,
+      "max": 100,
+      "tolerance_default": 0.05,
+      "step": 0.1,
+      "format": "%.2f"
+    },
+    {
+      "cle": "epaisseur_mm",
+      "label": "Épaisseur (mm)",
+      "obligatoire": false,
+      "min": 0.1,
+      "max": 10,
+      "tolerance_default": 0.03,
+      "step": 0.01,
+      "format": "%.2f"
+    }
+  ]
+}

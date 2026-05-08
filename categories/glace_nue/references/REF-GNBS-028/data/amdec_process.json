@@ -1,0 +1,10 @@
+{
+  "reference": "REF-GNBS-028",
+  "document": "AMDEC Process",
+  "designation": "glace box saphir diamètre 28.00-3.40",
+  "modes_defaillance": [],
+  "confiance_globale": 1.0,
+  "avertissements_generateur": [
+    "Importé depuis Excel client"
+  ]
+}

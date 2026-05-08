@@ -1,0 +1,10 @@
+{
+  "reference": "REF-CMBS-010",
+  "document": "AMDEC Produit",
+  "designation": "dhfjgfhf",
+  "modes_defaillance": [],
+  "confiance_globale": 1.0,
+  "avertissements_generateur": [
+    "Importé depuis Excel client"
+  ]
+}

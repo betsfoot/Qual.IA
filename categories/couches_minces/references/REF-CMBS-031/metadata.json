@@ -1,0 +1,31 @@
+{
+  "reference": "REF-CMBS-031",
+  "categorie": "couches_minces",
+  "designation": "glace box diam ",
+  "type_produit": "glace_box",
+  "matiere": "saphir",
+  "traitements": [
+    "metallisation_or",
+    "antireflet_double_face"
+  ],
+  "dimensions": {
+    "diametre_mm": 31.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 3.8,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-28",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A",
+  "reference_source": "REF-GBS-030",
+  "score_similarite_origine": 0.765
+}

@@ -1,0 +1,31 @@
+{
+  "reference": "MY696356",
+  "categorie": "couches_minces",
+  "designation": "Glace sphérique Saphir synthétique Ø29.00mm — Métallisation Chrome-Nickel (CN) + Antireflet simple face",
+  "type_produit": "glace_spherique",
+  "matiere": "saphir",
+  "traitements": [
+    "metallisation_CN",
+    "antireflet_simple_face"
+  ],
+  "dimensions": {
+    "diametre_mm": 29.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 1.3,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-28",
+  "statut": "brouillon",
+  "redige_par": "Bureau Technique",
+  "approuve_par": "Yohann Yadel",
+  "indice_revision": "A",
+  "reference_source": "REF-GSS-032",
+  "score_similarite_origine": 0.745
+}

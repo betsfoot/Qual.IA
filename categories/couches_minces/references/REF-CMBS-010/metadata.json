@@ -1,0 +1,46 @@
+{
+  "reference": "REF-CMBS-010",
+  "categorie": "couches_minces",
+  "designation": "dhfjgfhf",
+  "type_produit": "glace_box",
+  "matiere": "saphir",
+  "traitements": [],
+  "dimensions": {
+    "diametre_mm": 10.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": null,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-05-07",
+  "statut": "brouillon",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A",
+  "reference_source": "import_excel",
+  "score_similarite_origine": 1.0,
+  "workflow": {
+    "statut": "brouillon",
+    "ipr_max": 168,
+    "gates_requises": [
+      "Vérification BT",
+      "Approbation Qualité",
+      "Validation Direction"
+    ],
+    "gates_completees": [],
+    "historique": [
+      {
+        "date": "2026-05-07T20:10:00",
+        "action": "creation",
+        "acteur": "Bureau Technique",
+        "commentaire": "Import Excel — fichier client"
+      }
+    ]
+  }
+}

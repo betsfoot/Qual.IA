@@ -1,0 +1,28 @@
+{
+  "reference": "REF-GNBS-028",
+  "categorie": "glace_nue",
+  "designation": "glace box saphir diamètre 28.00-3.40",
+  "type_produit": "glace_brute_box",
+  "matiere": "saphir_brut",
+  "traitements": [],
+  "dimensions": {
+    "diametre_mm": 28.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 3.4,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-27",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A",
+  "reference_source": "import_excel",
+  "score_similarite_origine": 1.0
+}

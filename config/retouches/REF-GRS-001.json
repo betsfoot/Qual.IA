@@ -1,0 +1,38 @@
+[
+  {
+    "id": "RETO-REFGRS001-0001",
+    "ref_article": "REF-GRS-001",
+    "date": "2026-05-08",
+    "operateur": "Marie Dupont",
+    "poste_travail": "PO-01",
+    "defaut_constate": "Rayure fine face avant",
+    "operation": "Reprise polissage fin",
+    "resultat": "conforme",
+    "commentaire": "OK après 2ème passe",
+    "created_at": "2026-05-08T11:21:37"
+  },
+  {
+    "id": "RETO-REFGRS001-0002",
+    "ref_article": "REF-GRS-001",
+    "date": "2026-05-07",
+    "operateur": "Jean Martin",
+    "poste_travail": "CN-02",
+    "defaut_constate": "Hétérogénéité couleur CN",
+    "operation": "Reprise métallisation CN",
+    "resultat": "rebut",
+    "commentaire": "Substrate fissuré",
+    "created_at": "2026-05-08T11:21:37"
+  },
+  {
+    "id": "RETO-REFGRS001-0003",
+    "ref_article": "REF-GRS-001",
+    "date": "2026-05-06",
+    "operateur": "Marie Dupont",
+    "poste_travail": "AR-03",
+    "defaut_constate": "AR non uniforme bord",
+    "operation": "Nettoyage plasma + redépôt AR",
+    "resultat": "conforme",
+    "commentaire": "",
+    "created_at": "2026-05-08T11:21:37"
+  }
+]

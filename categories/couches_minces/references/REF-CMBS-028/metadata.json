@@ -1,0 +1,69 @@
+{
+  "reference": "REF-CMBS-028",
+  "categorie": "couches_minces",
+  "designation": "Glace box MET OR et AR2FM",
+  "type_produit": "glace_box",
+  "matiere": "saphir",
+  "traitements": [
+    "metallisation_or",
+    "antireflet_double_face"
+  ],
+  "dimensions": {
+    "diametre_mm": 28.4,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 2.89,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-05-04",
+  "statut": "approuve",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A",
+  "reference_source": "REF-CMBS-031",
+  "score_similarite_origine": 0.79,
+  "workflow": {
+    "statut": "approuve",
+    "ipr_max": 96,
+    "gates_requises": [
+      "Vérification BT",
+      "Approbation Qualité"
+    ],
+    "gates_completees": [
+      "Vérification BT",
+      "Approbation Qualité"
+    ],
+    "historique": [
+      {
+        "date": "2026-05-04T18:48:43",
+        "action": "creation",
+        "acteur": "yadel",
+        "commentaire": "Dossier généré depuis REF-CMBS-031"
+      },
+      {
+        "date": "2026-05-04T18:48:43",
+        "action": "soumettre",
+        "acteur": "yadel",
+        "commentaire": "Soumis après génération IA"
+      },
+      {
+        "date": "2026-05-04T18:50:26",
+        "action": "approuver",
+        "acteur": "Elisa",
+        "commentaire": "Gate 'Vérification BT' validée par Elisa. vdbfbdgdv — Gate(s) restante(s) : Approbation Qualité"
+      },
+      {
+        "date": "2026-05-07T20:02:39",
+        "action": "approuver",
+        "acteur": "Resp. Qualité",
+        "commentaire": "Gate 'Approbation Qualité' validée par Resp. Qualité.  — Toutes les gates complétées."
+      }
+    ]
+  }
+}

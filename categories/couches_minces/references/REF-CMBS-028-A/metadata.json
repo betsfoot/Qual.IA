@@ -1,0 +1,31 @@
+{
+  "reference": "REF-CMBS-028-A",
+  "categorie": "couches_minces",
+  "designation": "Glace box MET OR et AR2FM",
+  "type_produit": "glace_box",
+  "matiere": "saphir",
+  "traitements": [
+    "metallisation_or",
+    "antireflet_double_face"
+  ],
+  "dimensions": {
+    "diametre_mm": 28.4,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 2.89,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-05-04",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": "yadel",
+  "indice_revision": "A",
+  "reference_source": "REF-CMBS-031",
+  "score_similarite_origine": 0.79
+}

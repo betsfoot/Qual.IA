@@ -1,0 +1,70 @@
+{
+  "code": "ceramique",
+  "nom": "Céramique technique",
+  "icone": "🧱",
+  "description": "Pièces céramiques (alumine, zircone, nitrure de silicium) — pressage, frittage, rectification",
+  "expert_prompt": "Tu es un expert en qualité industrielle spécialisé dans la fabrication de pièces en céramique technique : alumine (Al2O3), zircone stabilisée (Y-TZP / ZrO2), nitrure de silicium (Si3N4), carbure de silicium (SiC). Tu maîtrises les procédés de pressage isostatique, frittage haute température (1400-1700°C), rectification diamant, contrôle de densité Archimède, dureté Vickers (HV), résistance à la flexion, microstructure, porosité résiduelle. Tu connais les normes ISO 6474 (céramiques bio), ISO 17561 (densité), et les défauts typiques (microfissures, porosité, déformation au frittage).",
+
+  "criteres_similarite": {
+    "type_produit": {
+      "poids": 0.30,
+      "type_comparaison": "exact_match",
+      "description": "Forme géométrique (bague, axe, cale, plateau, etc.)"
+    },
+    "matiere": {
+      "poids": 0.30,
+      "type_comparaison": "exact_match",
+      "description": "Composition céramique (alumine, zircone, etc.)"
+    },
+    "gamme_dimension": {
+      "poids": 0.20,
+      "type_comparaison": "diameter_range",
+      "description": "Dimension principale"
+    },
+    "epaisseur": {
+      "poids": 0.20,
+      "type_comparaison": "numeric_proximity",
+      "description": "Épaisseur / hauteur"
+    }
+  },
+
+  "vocabulaire": {
+    "types_produit": {
+      "bague": "Bague",
+      "axe": "Axe",
+      "plateau": "Plateau / disque",
+      "cale": "Cale parallélépipédique",
+      "lame": "Lame fine",
+      "embout": "Embout / nez",
+      "douille": "Douille / manchon"
+    },
+    "matieres": {
+      "alumine_99": "Alumine 99% (Al2O3)",
+      "alumine_96": "Alumine 96%",
+      "zircone_y_tzp": "Zircone Y-TZP stabilisée",
+      "nitrure_silicium": "Nitrure de silicium (Si3N4)",
+      "carbure_silicium": "Carbure de silicium (SiC)",
+      "alumine_zircone": "Alumine renforcée zircone (ZTA)"
+    },
+    "traitements": {
+      "rectif_diamant": "Rectification diamant",
+      "polissage_miroir": "Polissage miroir (Ra ≤ 10nm)",
+      "metallisation_brasage": "Métallisation pour brasage",
+      "tribofinition": "Tribofinition",
+      "marquage_laser": "Marquage laser",
+      "biocompatible_iso6474": "Conformité ISO 6474 (bio)"
+    },
+    "familles_defaillance": ["structurel", "geometrique", "densite", "tracabilite"]
+  },
+
+  "champs_brief": {
+    "diametre_obligatoire": true,
+    "epaisseur_obligatoire": true,
+    "tolerance_diametre_default": 0.02,
+    "tolerance_epaisseur_default": 0.02,
+    "diametre_min": 1,
+    "diametre_max": 200,
+    "epaisseur_min": 0.5,
+    "epaisseur_max": 50
+  }
+}

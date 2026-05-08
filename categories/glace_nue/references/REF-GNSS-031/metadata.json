@@ -1,0 +1,53 @@
+{
+  "reference": "REF-GNSS-031",
+  "categorie": "glace_nue",
+  "designation": "Glace brute sphérique Saphir synthétique brut Ø31.00mm — Chanfrein bordure",
+  "type_produit": "glace_brute_spherique",
+  "matiere": "saphir_brut",
+  "traitements": [
+    "chanfrein"
+  ],
+  "dimensions": {
+    "diametre_mm": 31.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": null,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "facette poli ",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-28",
+  "statut": "en_revue",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A",
+  "reference_source": "REF-GNRS-034",
+  "score_similarite_origine": 0.52,
+  "workflow": {
+    "statut": "en_revue",
+    "ipr_max": 84,
+    "gates_requises": [
+      "Vérification BT",
+      "Approbation Qualité"
+    ],
+    "gates_completees": [],
+    "historique": [
+      {
+        "date": "2026-04-28T17:48:08",
+        "action": "creation",
+        "acteur": "yadel yohann",
+        "commentaire": "Dossier généré depuis REF-GNRS-034"
+      },
+      {
+        "date": "2026-04-28T17:48:08",
+        "action": "soumettre",
+        "acteur": "yadel yohann",
+        "commentaire": "Soumis après génération IA"
+      }
+    ]
+  }
+}

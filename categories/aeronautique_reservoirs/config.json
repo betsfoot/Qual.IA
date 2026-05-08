@@ -1,0 +1,115 @@
+{
+  "code": "aeronautique_reservoirs",
+  "nom": "Réservoirs hélicoptère",
+  "icone": "🚁",
+  "description": "Réservoirs carburant et fluides pour hélicoptères — conception, fabrication et qualification selon EN9100 / CS-29",
+  "expert_prompt": "Tu es un expert en qualité industrielle aéronautique spécialisé dans la fabrication de réservoirs carburant pour hélicoptères. Tu maîtrises les normes EN9100, CS-29, DO-160, MIL-DTL-5578, les exigences EASA sur les réservoirs crash-résistants, les tests d'étanchéité, les traitements de surface aluminium (anodisation, primaire époxy, peinture polyuréthane), les assemblages rivets et collages structuraux. Tu connais les contraintes de navigabilité, les FMEA/FMECA aéronautiques avec criticités selon ARP4761, et les exigences de traçabilité documentaire pour la certification.",
+
+  "criteres_similarite": {
+    "type_produit": {
+      "poids": 0.30,
+      "type_comparaison": "exact_match",
+      "description": "Type de réservoir (principal, auxiliaire, crash-résistant, souple)"
+    },
+    "matiere": {
+      "poids": 0.25,
+      "type_comparaison": "exact_match",
+      "description": "Matériau principal (aluminium 2024, aluminium 7075, composite CFRP, élastomère)"
+    },
+    "gamme_dimension": {
+      "poids": 0.20,
+      "type_comparaison": "diameter_range",
+      "cle_dimension": "diametre_mm",
+      "description": "Tranche de capacité (< 50L / 50-200L / > 200L)"
+    },
+    "traitement_surface": {
+      "poids": 0.15,
+      "type_comparaison": "metallisation_match",
+      "description": "Traitement de surface (anodisation, primaire, peinture)"
+    },
+    "epaisseur": {
+      "poids": 0.10,
+      "type_comparaison": "numeric_proximity",
+      "cle_dimension": "epaisseur_mm",
+      "description": "Épaisseur de paroi (mm)"
+    }
+  },
+
+  "vocabulaire": {
+    "types_produit": {
+      "reservoir_principal": "Réservoir principal carburant",
+      "reservoir_auxiliaire": "Réservoir auxiliaire / nourrice",
+      "reservoir_crash": "Réservoir crash-résistant (MIL-DTL-5578)",
+      "reservoir_souple": "Réservoir souple élastomère",
+      "reservoir_huile": "Réservoir huile moteur",
+      "reservoir_hydraulique": "Réservoir hydraulique"
+    },
+    "matieres": {
+      "alu_2024": "Aluminium 2024-T3",
+      "alu_7075": "Aluminium 7075-T6",
+      "alu_6061": "Aluminium 6061-T6",
+      "inox_316L": "Inox 316L",
+      "titane_6Al4V": "Titane TA6V (Ti-6Al-4V)",
+      "composite_CFRP": "Composite carbone (CFRP)",
+      "elastomere_NBR": "Élastomère NBR (nitrile)",
+      "elastomere_fluoré": "Élastomère fluoré (FKM/Viton)"
+    },
+    "traitements": {
+      "anodisation_chromique": "Anodisation chromique OAC (MIL-A-8625 Type I)",
+      "anodisation_sulfurique": "Anodisation sulfurique OAS (MIL-A-8625 Type II)",
+      "primaire_epoxy": "Primaire époxy résistant carburant",
+      "peinture_polyurethane": "Peinture polyuréthane bi-composant",
+      "revetement_interieur": "Revêtement intérieur anti-corrosion carburant",
+      "soudure_tig": "Soudure TIG orbital certifié",
+      "rivetage_etanche": "Rivetage étanche Cherrymax",
+      "collage_structural": "Collage structural aérospatial",
+      "test_etancheite": "Essai d'étanchéité pression / dépression",
+      "traitement_thermique": "Traitement thermique de détente"
+    },
+    "familles_defaillance": [
+      "etancheite",
+      "structurale",
+      "corrosion",
+      "fatigue",
+      "contamination",
+      "geometrique",
+      "tracabilite"
+    ]
+  },
+
+  "champs_brief": {
+    "diametre_obligatoire": true,
+    "diametre_label": "Capacité (litres)",
+    "epaisseur_obligatoire": true,
+    "epaisseur_label": "Épaisseur paroi (mm)",
+    "tolerance_diametre_default": 0.5,
+    "tolerance_epaisseur_default": 0.1,
+    "diametre_min": 5,
+    "diametre_max": 800,
+    "epaisseur_min": 0.5,
+    "epaisseur_max": 15
+  },
+
+  "parametres_numeriques": [
+    {
+      "cle": "diametre_mm",
+      "label": "Capacité (litres)",
+      "obligatoire": true,
+      "min": 5,
+      "max": 800,
+      "tolerance_default": 0.5,
+      "step": 0.5,
+      "format": "%.1f"
+    },
+    {
+      "cle": "epaisseur_mm",
+      "label": "Épaisseur paroi (mm)",
+      "obligatoire": true,
+      "min": 0.5,
+      "max": 15,
+      "tolerance_default": 0.1,
+      "step": 0.05,
+      "format": "%.2f"
+    }
+  ]
+}

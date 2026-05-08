@@ -1,0 +1,63 @@
+{
+  "reference": "REF-AERO-RC-002",
+  "document": "AMDEC Process",
+  "designation": "Réservoir auxiliaire nourrice Alu 7075 — 45L — Hélicoptère lourd",
+  "confiance_globale": 85,
+  "avertissements_generateur": [],
+  "modes_defaillance": [
+    {
+      "no": "01",
+      "operation_process": "Rivetage étanche Cherrymax",
+      "etape_poste": "Poste rivetage / zone assemblage",
+      "mode_defaillance": "Jeu excessif entre rivet et trou",
+      "effets_produit": "Rivet non étanche, fuite différée en service",
+      "G": 9,
+      "causes_process": "Foret usé, mauvais diamètre sélectionné, perçage hors axe",
+      "O": 3,
+      "controles_process": "Contrôle diamètre trou au calibre go/no-go avant pose rivet",
+      "D": 2,
+      "classe_criticite": "Critique",
+      "actions_correctives": "Remplacement foret tous les 50 trous, calibre go/no-go obligatoire, formation opérateur",
+      "responsable": "Chef d'atelier",
+      "delai": "Immédiat",
+      "parametre_cle": "Jeu trou / rivet",
+      "valeur_cible": "0.05 à 0.15 mm"
+    },
+    {
+      "no": "02",
+      "operation_process": "Anodisation sulfurique OAS",
+      "etape_poste": "Ligne traitement surface",
+      "mode_defaillance": "Brûlure anodique sur arêtes vives",
+      "effets_produit": "Couche anodique non uniforme, points de corrosion préférentiels",
+      "G": 7,
+      "causes_process": "Densité de courant trop élevée sur arêtes, masquage insuffisant",
+      "O": 3,
+      "controles_process": "Contrôle visuel 100% après anodisation, mesure épaisseur couche",
+      "D": 2,
+      "classe_criticite": "Action corrective",
+      "actions_correctives": "Ebavurage systématique R0.5 avant anodisation, réduction densité courant en zone critique",
+      "responsable": "Resp. Traitement Surface",
+      "delai": "J+7",
+      "parametre_cle": "Densité de courant",
+      "valeur_cible": "1.2 à 1.5 A/dm²"
+    },
+    {
+      "no": "03",
+      "operation_process": "Test étanchéité final",
+      "etape_poste": "Banc d'essai",
+      "mode_defaillance": "Faux positif — raccord test fuyant masque une fuite pièce",
+      "effets_produit": "Pièce non conforme libérée",
+      "G": 10,
+      "causes_process": "Joint raccord test dégradé, raccord test mal serré",
+      "O": 2,
+      "controles_process": "Vérification étanchéité raccords test avant chaque série, double mesure opérateur",
+      "D": 2,
+      "classe_criticite": "Critique",
+      "actions_correctives": "Remplacement joints raccords test tous les 50 cycles, check-list banc avant utilisation",
+      "responsable": "Contrôleur Qualité",
+      "delai": "Immédiat",
+      "parametre_cle": "Chute pression max",
+      "valeur_cible": "≤ 0.01 bar / 30 min"
+    }
+  ]
+}

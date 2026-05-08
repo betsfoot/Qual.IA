@@ -1,0 +1,44 @@
+{
+  "reference": "REF-AERO-RP-001",
+  "categorie": "aeronautique_reservoirs",
+  "designation": "Réservoir principal carburant Alu 2024 — 120L — Hélicoptère léger",
+  "type_produit": "reservoir_principal",
+  "matiere": "alu_2024",
+  "traitements": [
+    "anodisation_chromique",
+    "primaire_epoxy",
+    "revetement_interieur",
+    "soudure_tig",
+    "test_etancheite"
+  ],
+  "dimensions": {
+    "diametre_mm": 120,
+    "tolerance_diametre_mm": 0.5,
+    "epaisseur_mm": 2.0,
+    "tolerance_epaisseur_mm": 0.1
+  },
+  "exigences_speciales": "Qualification CS-29 / EASA. Crash-test selon MIL-DTL-5578. Traçabilité matière obligatoire (certificat 3.1). Soudeurs certifiés EN ISO 9606-2.",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "date_creation": "2024-09-15",
+  "statut": "libere",
+  "redige_par": "J. Marchand",
+  "approuve_par": "P. Fontaine",
+  "indice_revision": "B",
+  "workflow": {
+    "statut": "libere",
+    "ipr_max": 112,
+    "gates_requises": ["Vérification BT", "Approbation Qualité", "Validation Direction"],
+    "gates_completees": ["Vérification BT", "Approbation Qualité", "Validation Direction"],
+    "historique": [
+      {"action": "soumettre", "acteur": "J. Marchand", "date": "2024-09-16T08:30:00", "commentaire": "Dossier initial Rev A"},
+      {"action": "approuver", "acteur": "R. Dubois", "date": "2024-09-17T10:15:00", "commentaire": "Vérification BT OK — soudures conformes EN ISO 15614"},
+      {"action": "approuver", "acteur": "P. Fontaine", "date": "2024-09-18T14:00:00", "commentaire": "Approbation Qualité — IPR max 112 acceptable avec plan d'action"},
+      {"action": "approuver", "acteur": "C. Bernard", "date": "2024-09-19T09:00:00", "commentaire": "Validation Direction — Rev B suite retour EASA"},
+      {"action": "liberer", "acteur": "P. Fontaine", "date": "2024-09-20T11:00:00", "commentaire": "Libéré pour production série"}
+    ]
+  }
+}

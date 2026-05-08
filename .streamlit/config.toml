@@ -1,0 +1,15 @@
+[server]
+# Sur Linux (Streamlit Cloud) : "poll" est plus fiable que "none"
+# En local : passer à "none" si les rechargements automatiques gênent
+runOnSave = false
+fileWatcherType = "poll"
+
+[browser]
+# Désactive la collecte de statistiques d'usage
+gatherUsageStats = false
+
+[theme]
+primaryColor = "#1F4E79"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"

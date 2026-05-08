@@ -1,0 +1,28 @@
+{
+  "reference": "REF-GBS-030",
+  "designation": "Glace box saphir 30x30mm — Chrome clair + AR simple face",
+  "type_produit": "glace_box",
+  "matiere": "saphir",
+  "traitements": [
+    "metallisation_chrome_clair",
+    "antireflet_simple_face"
+  ],
+  "dimensions": {
+    "diametre_mm": 30.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 2.0,
+    "tolerance_epaisseur_mm": 0.03,
+    "hauteur_box_mm": 1.2
+  },
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-26",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A"
+}

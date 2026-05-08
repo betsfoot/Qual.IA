@@ -1,0 +1,26 @@
+{
+  "reference": "REF-GPS-040",
+  "designation": "Glace plate saphir Ø40mm — AR double face uniquement",
+  "type_produit": "glace_ronde",
+  "matiere": "saphir",
+  "traitements": [
+    "antireflet_double_face"
+  ],
+  "dimensions": {
+    "diametre_mm": 40.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 1.8,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-26",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A"
+}

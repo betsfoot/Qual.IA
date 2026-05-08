@@ -1,0 +1,76 @@
+{
+  "reference": "REF-CMXS-031",
+  "categorie": "couches_minces",
+  "designation": "glace_2pp Saphir synthétique Ø31.00mm — Antireflet double face (AR) [BBAR-5L]",
+  "type_produit": "glace_2pp",
+  "matiere": "saphir",
+  "traitements": [
+    {
+      "code": "antireflet_double_face",
+      "typologie": "BBAR-5L"
+    }
+  ],
+  "dimensions": {
+    "diametre_mm": 31.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": null,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "exigences_speciales": "",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-05-06",
+  "statut": "en_revue",
+  "redige_par": "Administrateur",
+  "approuve_par": null,
+  "indice_revision": "A",
+  "reference_source": "REF-GPS-036",
+  "score_similarite_origine": 0.625,
+  "workflow": {
+    "statut": "en_revue",
+    "ipr_max": 81,
+    "gates_requises": [
+      "Vérification BT",
+      "Approbation Qualité"
+    ],
+    "gates_completees": [
+      "Vérification BT"
+    ],
+    "historique": [
+      {
+        "date": "2026-05-06T18:39:16",
+        "action": "creation",
+        "acteur": "Administrateur",
+        "commentaire": "Dossier généré depuis REF-GPS-036"
+      },
+      {
+        "date": "2026-05-06T18:39:16",
+        "action": "soumettre",
+        "acteur": "Administrateur",
+        "commentaire": "Soumis après génération IA"
+      },
+      {
+        "date": "2026-05-06T21:58:58",
+        "action": "corrections",
+        "acteur": "Administrateur",
+        "commentaire": "est ce que le posage est a disposition pour ce nouveau produit"
+      },
+      {
+        "date": "2026-05-07T20:05:11",
+        "action": "resoumettre",
+        "acteur": "Bureau Technique",
+        "commentaire": ""
+      },
+      {
+        "date": "2026-05-07T20:06:07",
+        "action": "approuver",
+        "acteur": "Bureau Technique",
+        "commentaire": "Gate 'Vérification BT' validée par Bureau Technique.  — Gate(s) restante(s) : Approbation Qualité"
+      }
+    ]
+  }
+}

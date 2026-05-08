@@ -1,0 +1,70 @@
+{
+  "reference": "REF-GRS-001",
+  "designation": "Glace ronde saphir synthétique Ø34mm — Métallisation CN + Antireflet double face",
+  "type_produit": "glace_ronde",
+  "matiere": "saphir",
+  "traitements": ["metallisation_CN", "antireflet_double_face"],
+  "dimensions": {
+    "diametre_mm": 34.00,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": null,
+    "tolerance_epaisseur_mm": 0.03
+  },
+  "specifications_optiques": {
+    "transmission_min_pct": 92,
+    "reflexion_max_pct": 0.4,
+    "reflexion_par_face_max_pct": 0.2
+  },
+  "specifications_geometriques": {
+    "planeite_max_mm": 0.01,
+    "planeite_zone_joint_max_mm": 0.005
+  },
+  "process": {
+    "operations": [
+      "OP-10 Réception matière",
+      "OP-20 Marquage traçabilité",
+      "OP-30 Nettoyage ultrason",
+      "OP-40 Inspection pré-dépôt",
+      "OP-50 Métallisation CN Sputtéring",
+      "OP-60 Contrôle post-CN",
+      "OP-70 Antireflet Face 1 PVD",
+      "OP-75 Contrôle intermédiaire F1",
+      "OP-80 Retournement F1→F2",
+      "OP-90 Antireflet Face 2 PVD",
+      "OP-100 Contrôle final 100%",
+      "OP-110 Libération lot",
+      "OP-120 Conditionnement",
+      "OP-130 Expédition"
+    ],
+    "nb_operations": 13,
+    "equipements_cles": [
+      "Sputtéring ALS-450",
+      "Évaporateur thermique PVD",
+      "Cuve ultrason",
+      "Spectrophotomètre",
+      "Profilomètre Dektak",
+      "Microscope x10/x50"
+    ]
+  },
+  "familles_defaillance_produit": [
+    "optique",
+    "esthetique",
+    "geometrique",
+    "etancheite",
+    "tracabilite"
+  ],
+  "nb_modes_defaillance_produit": 14,
+  "nb_modes_defaillance_process": 11,
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json",
+    "template_source": "../../templates/Templates_AMDEC_Gamme.xlsx"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-04-25",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": null,
+  "indice_revision": "A"
+}
