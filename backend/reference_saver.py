@@ -150,6 +150,9 @@ def enregistrer_reference(
         "indice_revision": "A",
         "reference_source": dossier.get("metadonnees_generation", {}).get("reference_source"),
         "score_similarite_origine": dossier.get("metadonnees_generation", {}).get("score_similarite"),
+        # Garde qualité niveau 2 : flag procédé extrapolé (score similarité 30-60%)
+        "premiere_fabrication": dossier.get("metadonnees_generation", {}).get("premiere_fabrication", False),
+        "score_reference": dossier.get("metadonnees_generation", {}).get("score_reference"),
     }
 
     amdec_produit = dict(dossier.get("amdec_produit", {}))

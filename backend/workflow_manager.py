@@ -81,9 +81,19 @@ def initialiser_workflow(metadata: dict, data: dict, acteur: str = "Système", c
     """
     Ajoute la structure workflow à un metadata existant.
     Appelé à la création ou à la première soumission d'un dossier.
+
+    Si metadata["premiere_fabrication"] est True (procédé extrapolé, score 30-60%),
+    une gate de validation Responsable Méthodes est ajoutée automatiquement
+    pour imposer une revue renforcée avant libération.
     """
     ipr_max = calculer_ipr_max(data)
     gates = calculer_gates_requises(ipr_max)
+
+    # Garde niveau 2 : procédé extrapolé → validation Responsable Méthodes obligatoire
+    if metadata.get("premiere_fabrication", False):
+        gate_extra = "Validation Responsable Méthodes"
+        if gate_extra not in gates:
+            gates = gates + [gate_extra]
 
     workflow = {
         "statut": "brouillon",
@@ -261,6 +271,7 @@ GATE_ROLES = {
     "Vérification BT": "bt",
     "Approbation Qualité": "qualite",
     "Validation Direction": "direction",
+    "Validation Responsable Méthodes": "qualite",  # procédé extrapolé — revue renforcée
 }
 
 

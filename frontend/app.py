@@ -480,6 +480,11 @@ if page == "📋 Workflow":
             last = (wf.get("historique") or [{}])[-1]
             with st.container(border=True):
                 st.markdown(f"**`{r['reference']}`**")
+                # Badge procédé extrapolé (niveau 2 garde qualité)
+                if r.get("premiere_fabrication", False):
+                    score_src = r.get("score_reference") or r.get("score_similarite_origine")
+                    score_txt = f" — similarité {score_src:.0%}" if score_src else ""
+                    st.warning(f"⚠️ Procédé extrapolé{score_txt} — revue renforcée requise")
                 st.caption(r.get("designation", "")[:50])
                 st.caption(f"IPR max : {wf.get('ipr_max', '—')}")
                 if statut == "corrections":
@@ -515,6 +520,11 @@ if page == "📋 Workflow":
                         kb2.markdown(f"{badge} **IPR {ipr_val}**")
                     except (ValueError, TypeError):
                         kb2.caption(f"IPR {ipr_max}")
+                # Badge procédé extrapolé (niveau 2 garde qualité)
+                if r.get("premiere_fabrication", False):
+                    score_src = r.get("score_reference") or r.get("score_similarite_origine")
+                    score_txt = f" — similarité {score_src:.0%}" if score_src else ""
+                    st.warning(f"⚠️ Procédé extrapolé{score_txt} — revue renforcée requise")
                 st.caption(r.get("designation", "")[:50])
                 for g in gates_req:
                     if g in gates_ok:
@@ -559,6 +569,11 @@ if page == "📋 Workflow":
             last = (wf.get("historique") or [{}])[-1]
             with st.container(border=True):
                 st.markdown(f"**`{r['reference']}`**")
+                # Badge procédé extrapolé (niveau 2 garde qualité)
+                if r.get("premiere_fabrication", False):
+                    score_src = r.get("score_reference") or r.get("score_similarite_origine")
+                    score_txt = f" — similarité {score_src:.0%}" if score_src else ""
+                    st.warning(f"⚠️ Procédé extrapolé{score_txt} — revue renforcée requise")
                 st.caption(r.get("designation", "")[:50])
                 st.markdown(label_statut(_statut_ref(r)))
                 if last.get("date"):
@@ -2234,29 +2249,53 @@ if st.session_state.resultat_similarite is not None:
     if variantes_pretes and len({v["article"] for v in variantes_pretes}) == len(variantes_pretes):
         st.divider()
         st.info(f"**{len(variantes_pretes)} variante(s) configurées dans le brief** → {', '.join(v['article'] for v in variantes_pretes)}")
-        if st.button(f"⚡ Générer les {len(variantes_pretes)} variantes →", type="primary", use_container_width=True, key="btn_variantes"):
-            try:
-                api_key = get_secret("ANTHROPIC_API_KEY")
-            except ValueError as e:
-                st.error(str(e))
-                api_key = ""
-            if api_key:
-                ph_v = st.empty()
-                ph_v.info(f"Génération de {len(variantes_pretes)} variantes… (30–90 secondes)")
+
+        # ── Garde qualité : score < 30% → blocage variantes aussi
+        if res.score < _SEUIL_GENERATION_GARDE:
+            st.error(
+                f"🚫 **Score {score_pct} insuffisant** — la génération de variantes est également bloquée. "
+                "Ajoutez d'abord une référence manuelle proche de ce procédé."
+            )
+        else:
+            _squelette_v = res.mode == "manuelle"
+            _label_v = (
+                f"⚡ Générer le squelette des {len(variantes_pretes)} variantes (extrapolé) →"
+                if _squelette_v
+                else f"⚡ Générer les {len(variantes_pretes)} variantes →"
+            )
+            if st.button(_label_v, type="primary", use_container_width=True, key="btn_variantes"):
                 try:
-                    dossiers = generer_dossier_variantes(
-                        brief_base=st.session_state.brief,
-                        variantes=variantes_pretes,
-                        resultat_similarite=st.session_state.resultat_similarite,
-                        categorie=categorie_active,
-                    )
-                    st.session_state.dossiers_variantes = dossiers
-                    ph_v.success(f"✅ {len(dossiers)} variantes générées !")
-                    st.rerun()
-                except Exception as e:
-                    ph_v.error(f"Erreur : {e}")
+                    api_key = get_secret("ANTHROPIC_API_KEY")
+                except ValueError as e:
+                    st.error(str(e))
+                    api_key = ""
+                if api_key:
+                    ph_v = st.empty()
+                    ph_v.info(f"Génération de {len(variantes_pretes)} variantes… (30–90 secondes)")
+                    try:
+                        dossiers = generer_dossier_variantes(
+                            brief_base=st.session_state.brief,
+                            variantes=variantes_pretes,
+                            resultat_similarite=st.session_state.resultat_similarite,
+                            categorie=categorie_active,
+                            mode_squelette=_squelette_v,
+                        )
+                        # Niveau 2 : marquer les variantes extrapolées
+                        if _squelette_v:
+                            for art, dos in dossiers.items():
+                                dos.setdefault("metadonnees_generation", {})["premiere_fabrication"] = True
+                                dos["metadonnees_generation"]["score_reference"] = round(res.score, 4)
+                        st.session_state.dossiers_variantes = dossiers
+                        ph_v.success(f"✅ {len(dossiers)} variantes générées !")
+                        st.rerun()
+                    except Exception as e:
+                        ph_v.error(f"Erreur : {e}")
 
 # ─── ÉTAPE 3 : Génération ────────────────────────────────────────────────────
+# Seuils de garde qualité (ne pas modifier sans validation Responsable Méthodes)
+_SEUIL_GENERATION_NORMALE = 0.60   # >= 60% : génération directe depuis référence connue
+_SEUIL_GENERATION_GARDE   = 0.30   # 30–60% : avertissement + squelette, confirmation requise
+                                    # < 30%  : blocage complet, aucun bouton de génération
 
 if (
     st.session_state.resultat_similarite is not None
@@ -2268,53 +2307,111 @@ if (
     res = st.session_state.resultat_similarite
     brief = st.session_state.brief
 
-    if res.mode == "manuelle":
-        st.warning(
-            f"⚠️ **Mode création assistée** — Score {score_pct} faible. "
-            f"`{res.reference}` ne sera utilisée que comme **trame structurelle** "
-            f"(colonnes, format, type d'opérations). Les contenus métier devront être "
-            f"largement révisés à l'étape ④. La confiance globale sera basse."
+    # ── Niveau 1 : garde selon score de similarité ────────────────────────────
+    if res.score < _SEUIL_GENERATION_GARDE:
+        # Blocage complet — procédé inconnu
+        st.error(
+            f"🚫 **Procédé non maîtrisé dans le système** (score : **{score_pct}**)\n\n"
+            "Aucune référence suffisamment proche n'existe dans votre base. "
+            "Générer un document qualité depuis cette combinaison produirait des données "
+            "entièrement inventées — inacceptable en contexte industriel.\n\n"
+            "**Actions requises avant de pouvoir générer :**\n"
+            "- Ajoutez d'abord une référence manuelle via l'import Excel\n"
+            "- Ou validez ce procédé en atelier et saisissez-le manuellement dans la base"
         )
+        # Aucun bouton de génération — blocage total
+
+    elif res.mode == "manuelle":
+        # Score 30–60% : avertissement + génération squelette sur confirmation
+        st.warning(
+            f"⚠️ **Procédé extrapolé — vérification obligatoire** (score : **{score_pct}**)\n\n"
+            f"La référence la plus proche `{res.reference}` n'est que partiellement similaire. "
+            "En confirmant, Claude générera un **squelette structurel** : les valeurs numériques "
+            "(indices G, O, D, tolérances, paramètres process) seront remplacées par "
+            "`[À DÉFINIR EN ATELIER]` — aucune valeur ne sera inventée.\n\n"
+            "**Ce dossier devra être intégralement vérifié avant tout usage en production.**"
+        )
+        if st.button(
+            "⚡ Générer le squelette (procédé extrapolé) →",
+            type="primary",
+            key="btn_gen_squelette",
+        ):
+            try:
+                api_key = get_secret("ANTHROPIC_API_KEY")
+            except ValueError as e:
+                st.error(str(e))
+                api_key = ""
+            if api_key:
+                placeholder = st.empty()
+                placeholder.info("Génération du squelette en cours… (30–90 secondes).")
+                try:
+                    dossier = generer_dossier_complet(
+                        brief=st.session_state.brief,
+                        resultat_similarite=res,
+                        categorie=categorie_active,
+                        mode_squelette=True,
+                    )
+                    # Niveau 2 : injection du flag premiere_fabrication dans les métadonnées
+                    dossier["metadonnees_generation"]["premiere_fabrication"] = True
+                    dossier["metadonnees_generation"]["score_reference"] = round(res.score, 4)
+                    st.session_state.dossier_genere = dossier
+                    placeholder.success(
+                        "Squelette généré. ⚠️ Toutes les valeurs numériques sont à compléter en atelier."
+                    )
+                except Exception as e:
+                    err_str = str(e)
+                    if "overloaded" in err_str.lower() or "529" in err_str:
+                        placeholder.error(
+                            "Les serveurs Claude sont momentanément surchargés (erreur 529). "
+                            "Patiente 1–2 minutes puis réessaie."
+                        )
+                    elif "rate_limit" in err_str.lower() or "429" in err_str:
+                        placeholder.error(
+                            "Limite de requêtes API atteinte (erreur 429). "
+                            "Patiente quelques secondes puis réessaie."
+                        )
+                    else:
+                        placeholder.error(f"Erreur lors de la génération : {e}")
+
     else:
+        # Score >= 60% : génération normale
         _pn = categorie_active.parametres_numeriques()
         _dim_info = f"{_pn[0]['label']}={brief['dimensions'].get(_pn[0]['cle'], '?')}" if _pn else ""
         st.info(
             f"Prêt à générer **AMDEC Produit + AMDEC Process + Gamme** "
             f"en adaptant `{res.reference}` ({_dim_info})."
         )
-
-    label_btn = "Générer en mode création assistée →" if res.mode == "manuelle" else "Générer les documents IA →"
-    if st.button(label_btn, type="primary"):
-        try:
-            api_key = get_secret("ANTHROPIC_API_KEY")
-        except ValueError as e:
-            st.error(str(e))
-            api_key = ""
-        if api_key:
-            placeholder = st.empty()
-            placeholder.info("Génération en cours… (30–90 secondes). En cas de surcharge API, jusqu'à 3 tentatives automatiques.")
+        if st.button("Générer les documents IA →", type="primary", key="btn_gen_normal"):
             try:
-                dossier = generer_dossier_complet(
-                    brief=st.session_state.brief,
-                    resultat_similarite=res,
-                    categorie=categorie_active,
-                )
-                st.session_state.dossier_genere = dossier
-                placeholder.success("Documents générés avec succès !")
-            except Exception as e:
-                err_str = str(e)
-                if "overloaded" in err_str.lower() or "529" in err_str:
-                    placeholder.error(
-                        "Les serveurs Claude sont momentanément surchargés (erreur 529). "
-                        "Patiente 1–2 minutes puis réessaie."
+                api_key = get_secret("ANTHROPIC_API_KEY")
+            except ValueError as e:
+                st.error(str(e))
+                api_key = ""
+            if api_key:
+                placeholder = st.empty()
+                placeholder.info("Génération en cours… (30–90 secondes). En cas de surcharge API, jusqu'à 3 tentatives automatiques.")
+                try:
+                    dossier = generer_dossier_complet(
+                        brief=st.session_state.brief,
+                        resultat_similarite=res,
+                        categorie=categorie_active,
                     )
-                elif "rate_limit" in err_str.lower() or "429" in err_str:
-                    placeholder.error(
-                        "Limite de requêtes API atteinte (erreur 429). "
-                        "Patiente quelques secondes puis réessaie."
-                    )
-                else:
-                    placeholder.error(f"Erreur lors de la génération : {e}")
+                    st.session_state.dossier_genere = dossier
+                    placeholder.success("Documents générés avec succès !")
+                except Exception as e:
+                    err_str = str(e)
+                    if "overloaded" in err_str.lower() or "529" in err_str:
+                        placeholder.error(
+                            "Les serveurs Claude sont momentanément surchargés (erreur 529). "
+                            "Patiente 1–2 minutes puis réessaie."
+                        )
+                    elif "rate_limit" in err_str.lower() or "429" in err_str:
+                        placeholder.error(
+                            "Limite de requêtes API atteinte (erreur 429). "
+                            "Patiente quelques secondes puis réessaie."
+                        )
+                    else:
+                        placeholder.error(f"Erreur lors de la génération : {e}")
 
 # ─── ÉTAPE 4 : Validation BT ─────────────────────────────────────────────────
 

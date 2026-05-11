@@ -36,6 +36,18 @@ INSTRUCTION_COMMUNE = (
     "Réponds UNIQUEMENT avec un objet JSON valide, sans commentaire, sans markdown, sans explication."
 )
 
+# ─── Instruction mode squelette ─────────────────────────────────────────────
+SQUELETTE_INSTRUCTION = (
+    "\n\n⚠️ MODE SQUELETTE ACTIVÉ — PROCÉDÉ NON MAÎTRISÉ\n"
+    "Tu génères un squelette de document qualité pour un procédé non encore validé en production.\n\n"
+    "RÈGLE ABSOLUE : Pour TOUS les champs numériques (indices G, O, D, IPR, tolérances, "
+    "paramètres process, temps opératoires, puissances, pressions, températures, épaisseurs de couche), "
+    "tu dois mettre la chaîne '[À DÉFINIR EN ATELIER]' au lieu d'inventer une valeur.\n"
+    "Génère uniquement la structure (modes de défaillance, étapes process, noms d'opérations) "
+    "mais JAMAIS de valeurs chiffrées inventées.\n"
+    "Cette règle est prioritaire sur toutes les autres instructions."
+)
+
 
 def _format_dims_str(dimensions: dict) -> str:
     """Formate le dict dimensions en chaîne lisible pour les prompts Claude."""
@@ -51,12 +63,20 @@ def _format_dims_str(dimensions: dict) -> str:
     return " | ".join(parts) or "non spécifiées"
 
 
-def _build_system_prompt(categorie=None) -> str:
-    """Construit le prompt système selon la catégorie active."""
+def _build_system_prompt(categorie=None, mode_squelette: bool = False) -> str:
+    """Construit le prompt système selon la catégorie active.
+
+    Si mode_squelette=True, ajoute une instruction stricte pour ne jamais
+    inventer de valeurs numériques (scores G/O/D, tolérances, paramètres process).
+    """
     if categorie is None:
-        return DEFAULT_EXPERT + INSTRUCTION_COMMUNE
-    expert = categorie.expert_prompt() if hasattr(categorie, "expert_prompt") else DEFAULT_EXPERT
-    return expert + INSTRUCTION_COMMUNE
+        base = DEFAULT_EXPERT + INSTRUCTION_COMMUNE
+    else:
+        expert = categorie.expert_prompt() if hasattr(categorie, "expert_prompt") else DEFAULT_EXPERT
+        base = expert + INSTRUCTION_COMMUNE
+    if mode_squelette:
+        base += SQUELETTE_INSTRUCTION
+    return base
 
 
 def _trouver_refs_supplement(brief: dict, ref_base_code: str, categorie) -> dict:
@@ -489,6 +509,7 @@ def generer_dossier_variantes(
     variantes: list,
     resultat_similarite,
     categorie=None,
+    mode_squelette: bool = False,
 ) -> dict:
     """
     Génère les 3 documents pour N variantes en 3 appels API (un par type de document).
@@ -518,7 +539,7 @@ def generer_dossier_variantes(
     client = anthropic.Anthropic(api_key=api_key)
     metadata = resultat_similarite.metadata
     source_data = _charger_donnees_reference(metadata, categorie)
-    system_prompt = _build_system_prompt(categorie)
+    system_prompt = _build_system_prompt(categorie, mode_squelette=mode_squelette)
 
     # Tokens max adaptés au nombre de variantes (chaque variante ~3000 tokens de sortie)
     max_tok = min(64000, max(16000, len(variantes) * 5000))
@@ -574,10 +595,15 @@ def generer_dossier_complet(
     resultat_similarite,
     categorie=None,
     base_dir: Path = None,
+    mode_squelette: bool = False,
 ) -> dict:
     """
     Point d'entrée principal. Génère les 3 documents pour un brief donné.
     `categorie` est l'objet Categorie active (utilisé pour le prompt expert).
+
+    Si mode_squelette=True, Claude ne génère que la structure sans aucune
+    valeur numérique inventée (tous les champs numériques → '[À DÉFINIR EN ATELIER]').
+    Utiliser uniquement quand le score de similarité est entre 30% et 60%.
     """
     api_key = get_secret("ANTHROPIC_API_KEY")
 
@@ -591,7 +617,7 @@ def generer_dossier_complet(
     client = anthropic.Anthropic(api_key=api_key)
     metadata = resultat_similarite.metadata
     source_data = _charger_donnees_reference(metadata, categorie)
-    system_prompt = _build_system_prompt(categorie)
+    system_prompt = _build_system_prompt(categorie, mode_squelette=mode_squelette)
 
     # Recherche des références supplément qui partagent les mêmes typologies de traitement
     supplement = _trouver_refs_supplement(brief, metadata.get("reference", ""), categorie)
