@@ -251,22 +251,41 @@ if page == "📥 Importer un Excel":
                 continue
 
             ws = wb[sheet_name]
-            ligne_h = _detecter_ligne_header(ws)
+            ligne_h_auto = _detecter_ligne_header(ws)
             data = list(ws.values)
-            if len(data) <= ligne_h:
+            if len(data) <= ligne_h_auto:
                 st.warning(f"{doc_type} : onglet vide.")
                 lignes_finales[cle] = []
                 continue
 
-            headers = [str(c) if c is not None else f"col_{i}" for i, c in enumerate(data[ligne_h - 1])]
-            rows = data[ligne_h:]
-            df = pd.DataFrame(rows, columns=headers).dropna(how="all")
+            with st.expander(f"**{doc_type}** — onglet `{sheet_name}`", expanded=True):
+                # Override manuel : si la détection auto est mauvaise, l'utilisateur
+                # peut choisir la ligne d'en-tête depuis un aperçu des 10 premières lignes
+                apercu_lignes = []
+                for idx in range(min(10, len(data))):
+                    ligne = data[idx]
+                    apercu = " | ".join(
+                        (str(c)[:30] + "…" if c and len(str(c)) > 30 else str(c) if c else "·")
+                        for c in (ligne[:6] if ligne else [])
+                    )
+                    apercu_lignes.append(f"Ligne {idx + 1} : {apercu}")
 
-            colonnes_excel = [c for c in df.columns if c and not str(c).startswith("col_")]
-            auto = _mapper_colonnes_auto(colonnes_excel, colonnes_cibles)
+                ligne_h = st.selectbox(
+                    "📍 Ligne d'en-tête (auto-détectée — corrige si nécessaire) :",
+                    options=list(range(1, min(11, len(data) + 1))),
+                    index=ligne_h_auto - 1,
+                    format_func=lambda x: apercu_lignes[x - 1] if x <= len(apercu_lignes) else f"Ligne {x}",
+                    key=f"header_row_{cle}",
+                )
 
-            with st.expander(f"**{doc_type}** — {len(df)} lignes détectées ({sheet_name})", expanded=True):
-                st.caption("Vérifie et corrige le mapping si besoin.")
+                headers = [str(c) if c is not None else f"col_{i}" for i, c in enumerate(data[ligne_h - 1])]
+                rows = data[ligne_h:]
+                df = pd.DataFrame(rows, columns=headers).dropna(how="all")
+
+                colonnes_excel = [c for c in df.columns if c and not str(c).startswith("col_")]
+                auto = _mapper_colonnes_auto(colonnes_excel, colonnes_cibles)
+
+                st.caption(f"**{len(df)} lignes de données** — vérifie et corrige le mapping si besoin.")
                 cols_display = st.columns(2)
                 mapping_corr = {}
                 for i, cible in enumerate(colonnes_cibles):
@@ -2307,8 +2326,26 @@ if (
     res = st.session_state.resultat_similarite
     brief = st.session_state.brief
 
+    # ── Niveau 0 : garde stricte sur les traitements inconnus de la base ─────
+    from backend.similarity_engine import traitements_inconnus, charger_references
+    _refs_validees = charger_references(categorie_active)
+    _inconnus = traitements_inconnus(brief, _refs_validees)
+
+    if _inconnus:
+        # Blocage absolu — un ou plusieurs traitements du brief n'existent dans aucune ref validée
+        st.error(
+            f"🚫 **Traitement(s) inconnu(s) de la base qualité** : `{', '.join(_inconnus)}`\n\n"
+            "Aucune référence libérée/approuvée de votre base ne contient ce(s) traitement(s). "
+            "Générer un dossier qualité dans ces conditions produirait des données "
+            "**entièrement inventées par l'IA** — inacceptable en contexte industriel.\n\n"
+            "**Actions requises avant de pouvoir générer :**\n"
+            "- Importer (Excel) ou créer manuellement une référence validée utilisant ce(s) traitement(s)\n"
+            "- Ou retirer ce(s) traitement(s) du brief si non applicables"
+        )
+        # Aucun bouton de génération — blocage total
+
     # ── Niveau 1 : garde selon score de similarité ────────────────────────────
-    if res.score < _SEUIL_GENERATION_GARDE:
+    elif res.score < _SEUIL_GENERATION_GARDE:
         # Blocage complet — procédé inconnu
         st.error(
             f"🚫 **Procédé non maîtrisé dans le système** (score : **{score_pct}**)\n\n"

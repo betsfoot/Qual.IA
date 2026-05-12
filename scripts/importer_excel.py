@@ -345,12 +345,39 @@ def _saisir_metadata(categorie) -> dict:
 
 
 def _detecter_ligne_header(ws) -> int:
-    """Détecte la ligne d'en-tête en cherchant la ligne avec le plus de cellules non vides."""
+    """
+    Détecte la ligne d'en-tête en privilégiant les lignes contenant des labels
+    courts/identifiants typiques (mots simples, sans ponctuation, sans chiffres).
+    Plus robuste que le simple "ligne avec le plus de cellules pleines".
+    """
+    # Tokens fréquents dans les en-têtes AMDEC/Gamme — pondération forte
+    HEADER_KEYWORDS = {
+        "no", "n°", "famille", "mode", "modes", "defaillance", "défaillance",
+        "effets", "causes", "criticite", "criticité", "ipr", "g", "o", "d",
+        "operation", "opération", "etape", "étape", "poste", "controles",
+        "contrôles", "actions", "fonction", "exigence", "caracteristique",
+        "caractéristique", "critique", "duree", "durée", "temps", "outillage",
+        "parametre", "paramètre",
+    }
+
     scores = {}
-    for i, row in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=True), start=1):
-        non_vides = sum(1 for c in row if c is not None and str(c).strip())
-        scores[i] = non_vides
-    return max(scores, key=scores.get) if scores else 1
+    for i, row in enumerate(ws.iter_rows(min_row=1, max_row=15, values_only=True), start=1):
+        cells = [str(c).strip().lower() for c in row if c is not None and str(c).strip()]
+        if not cells:
+            continue
+
+        # Score = nombre de cellules + bonus si tokens "header" + malus si cellule très longue
+        nb_cells = len(cells)
+        bonus_kw = sum(2 for c in cells if c in HEADER_KEYWORDS)
+        bonus_kw += sum(1 for c in cells if any(kw in c for kw in HEADER_KEYWORDS))
+        malus_long = sum(2 for c in cells if len(c) > 40)  # phrases longues → c'est de la donnée
+        malus_num = sum(1 for c in cells if c.replace(".", "").replace(",", "").replace("-", "").isdigit())
+
+        scores[i] = nb_cells + bonus_kw - malus_long - malus_num
+
+    if not scores:
+        return 1
+    return max(scores, key=scores.get)
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────

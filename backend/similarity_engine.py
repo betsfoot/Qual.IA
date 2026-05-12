@@ -268,6 +268,25 @@ def charger_references(categorie: Categorie, inclure_non_validees: bool = False)
     return references
 
 
+def traitements_inconnus(brief: dict, references: list[dict]) -> list[str]:
+    """
+    Retourne la liste des codes de traitement présents dans le brief mais qui
+    n'existent dans AUCUNE référence libérée/approuvée de la base.
+    Utilisé pour bloquer la génération si le procédé est totalement inconnu.
+    """
+    from backend.typologie_manager import normaliser_traitement
+
+    codes_brief = {normaliser_traitement(t)[0] for t in brief.get("traitements", []) if t}
+    codes_brief.discard("")
+    codes_base = set()
+    for ref in references:
+        for t in ref.get("traitements", []):
+            code, _ = normaliser_traitement(t)
+            if code:
+                codes_base.add(code)
+    return sorted(codes_brief - codes_base)
+
+
 def trouver_meilleure_reference(brief: dict, categorie: Categorie | str) -> ResultatSimilarite | None:
     """
     Compare le brief avec toutes les références de la catégorie.
