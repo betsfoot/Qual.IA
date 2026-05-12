@@ -86,3 +86,11 @@ htmlcov/
 # ─── Fichiers sensibles locaux ────────────────────────────────────────────────
 identification.txt
 test_export.pdf
+push_log.txt
+
+# ─── Scripts d'automatisation locaux (peuvent contenir des tokens) ───────────
+# Les .bat/.vbs créés par l'utilisateur ne doivent JAMAIS contenir de credentials
+# en clair. Si tu en crées, garde-les en local seulement.
+PUSH_GITHUB.bat
+PUBLIER_SUR_GITHUB.bat
+push.vbs

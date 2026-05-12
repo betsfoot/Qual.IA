@@ -1,4 +1,0 @@
-Debut push 
-error: could not lock config file .git/config
-error: Could not remove config section 'remote.origin'
-error: remote origin already exists.
