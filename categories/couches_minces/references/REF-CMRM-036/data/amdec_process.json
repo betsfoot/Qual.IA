@@ -1,0 +1,61 @@
+{
+  "reference": "REF-CMRM-036",
+  "document": "AMDEC Process",
+  "designation": "Glace ronde minérale Ø36.00mm — Métallisation CN",
+  "modes_defaillance": [
+    {
+      "no": 1,
+      "operation_process": "OP-30 Nettoyage ultrason",
+      "etape_poste": "Cuve ultrason verre",
+      "mode_defaillance": "Choc thermique verre minéral — fissuration interne",
+      "effets_produit": "Casse ou micro-fissure non visible à l'œil nu",
+      "G": 8,
+      "causes_process": "Écart de température trop brutal entre bains",
+      "O": 3,
+      "controles_process": "Contrôle visuel sous lumière polarisée post-ultrason",
+      "D": 3,
+      "classe_criticite": "A",
+      "actions_correctives": "ΔT entre bains ≤ 10°C — procédure échelonnement bains obligatoire",
+      "responsable": "Bureau Technique",
+      "delai": "2026-05-15",
+      "parametre_cle": "ΔT entre bains ultrason",
+      "valeur_cible": "≤ 10°C"
+    },
+    {
+      "no": 2,
+      "operation_process": "OP-50 Métallisation CN Sputtéring",
+      "etape_poste": "Sputtéring ALS-450",
+      "mode_defaillance": "Contrainte mécanique excessive — délaminage post-dépôt",
+      "effets_produit": "Pelage couche CN visible en service",
+      "G": 7,
+      "causes_process": "Température dépôt trop élevée / mauvaise adhérence nitrure",
+      "O": 2,
+      "controles_process": "Test adhérence ruban 3M + vieillissement accéléré 85°C/24h",
+      "D": 2,
+      "classe_criticite": "B",
+      "actions_correctives": "Ajout couche d'accrochage Cr 5nm avant CN — température substrat ≤ 150°C",
+      "responsable": "Bureau Technique",
+      "delai": "2026-06-01",
+      "parametre_cle": "Température substrat dépôt",
+      "valeur_cible": "≤ 150°C"
+    },
+    {
+      "no": 3,
+      "operation_process": "OP-60 Contrôle post-CN",
+      "etape_poste": "Poste contrôle optique",
+      "mode_defaillance": "Pièce rayée lors du contrôle",
+      "effets_produit": "Rayure sur la couche CN — refus client",
+      "G": 7,
+      "causes_process": "Manipulation avec outil non adapté — CN fragile avant rodage final",
+      "O": 3,
+      "controles_process": "Check-list équipements manipulation",
+      "D": 3,
+      "classe_criticite": "A",
+      "actions_correctives": "Pinces caoutchouc mousse uniquement — interdiction pinces métal sur CN verre minéral",
+      "responsable": "Qualité",
+      "delai": "2026-05-15",
+      "parametre_cle": "Type de pince manipulation",
+      "valeur_cible": "Pince mousse ou textile uniquement"
+    }
+  ]
+}

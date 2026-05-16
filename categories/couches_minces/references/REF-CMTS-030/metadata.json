@@ -1,0 +1,86 @@
+{
+  "reference": "REF-CMTS-030",
+  "designation": "Glace tonneau saphir Ø30.00mm — Métallisation Ruthénium + Antireflet double face + Traitement dur",
+  "type_produit": "glace_tonneau",
+  "matiere": "saphir",
+  "traitements": [
+    {
+      "code": "metallisation_ruthenium",
+      "typologie": "Ru/RuOx"
+    },
+    {
+      "code": "antireflet_double_face",
+      "typologie": "SiO2-TiO2-Al2O3"
+    },
+    {
+      "code": "traitement_dur",
+      "typologie": null
+    }
+  ],
+  "dimensions": {
+    "diametre_mm": 30.0,
+    "tolerance_diametre_mm": 0.05,
+    "epaisseur_mm": 2.8,
+    "tolerance_epaisseur_mm": 0.05
+  },
+  "exigences_speciales": "Forme tonneau : ratio largeur/longueur 0.75. Ru côté biseaux uniquement. Traitement dur sur face externe (anti-rayure renforcé).",
+  "documents": {
+    "AMDEC_produit": "data/amdec_produit.json",
+    "AMDEC_process": "data/amdec_process.json",
+    "gamme": "data/gamme.json"
+  },
+  "infor_reference": null,
+  "date_creation": "2026-05-01",
+  "statut": "valide",
+  "redige_par": "Bureau Technique",
+  "approuve_par": "Responsable Qualité",
+  "indice_revision": "A",
+  "reference_source": null,
+  "score_similarite_origine": null,
+  "premiere_fabrication": false,
+  "score_reference": null,
+  "workflow": {
+    "statut": "libere",
+    "ipr_max": 48,
+    "gates_requises": [
+      "Vérification BT",
+      "Approbation Qualité"
+    ],
+    "gates_completees": [
+      "Vérification BT",
+      "Approbation Qualité"
+    ],
+    "historique": [
+      {
+        "action": "creation",
+        "acteur": "Bureau Technique",
+        "date": "2026-05-01T09:00:00",
+        "commentaire": "Création référence REF-CMTS-030"
+      },
+      {
+        "action": "soumettre",
+        "acteur": "Bureau Technique",
+        "date": "2026-05-02T08:30:00",
+        "commentaire": "Soumission pour revue initiale"
+      },
+      {
+        "action": "approuver_gate_bt",
+        "acteur": "Chef BT",
+        "date": "2026-05-03T14:00:00",
+        "commentaire": "Vérification BT OK — AMDEC et gamme conformes"
+      },
+      {
+        "action": "approuver",
+        "acteur": "Responsable Qualité",
+        "date": "2026-05-05T10:00:00",
+        "commentaire": "Approbation qualité — dossier complet"
+      },
+      {
+        "action": "liberer",
+        "acteur": "Directeur Technique",
+        "date": "2026-05-06T08:00:00",
+        "commentaire": "Libération en production — référence REF-CMTS-030 active"
+      }
+    ]
+  }
+}

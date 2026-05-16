@@ -1,0 +1,61 @@
+{
+  "reference": "REF-CMSS-025",
+  "document": "AMDEC Process",
+  "designation": "Glace sphérique saphir Ø25.00mm — Antireflet simple face",
+  "modes_defaillance": [
+    {
+      "no": 1,
+      "operation_process": "OP-70 AR Face externe sphérique — PVD",
+      "etape_poste": "Évaporateur PVD + dôme sphérique rotatif",
+      "mode_defaillance": "Gradient épaisseur AR > 5% centre-bord",
+      "effets_produit": "Iridescence visible en bord — refus optique",
+      "G": 7,
+      "causes_process": "Vitesse rotation insuffisante — point source trop proche",
+      "O": 4,
+      "controles_process": "Mesure 5 points centre + bord après dépôt",
+      "D": 2,
+      "classe_criticite": "A",
+      "actions_correctives": "Optimisation distance source-substrat + fréquence rotation calotte — programme AR-Sph-V2",
+      "responsable": "Bureau Technique",
+      "delai": "2026-06-01",
+      "parametre_cle": "Vitesse rotation calotte",
+      "valeur_cible": "> 5 rpm"
+    },
+    {
+      "no": 2,
+      "operation_process": "OP-40 Inspection pré-dépôt",
+      "etape_poste": "Poste contrôle sphérique",
+      "mode_defaillance": "Pièce avec micro-rayure non détectée avant PVD",
+      "effets_produit": "Rayure visible sous AR post-dépôt — non rattrapable",
+      "G": 8,
+      "causes_process": "Inspection insuffisante face sphérique — angle d'éclairage inadapté",
+      "O": 3,
+      "controles_process": "Inspection multi-angles + microscope ×50 centre et bord",
+      "D": 3,
+      "classe_criticite": "A",
+      "actions_correctives": "Développement gabarit éclairage multi-angles sphère — 3 incidences obligatoires",
+      "responsable": "Qualité",
+      "delai": "2026-05-15",
+      "parametre_cle": "Angles d'inspection",
+      "valeur_cible": "0° / 30° / 60° incidence"
+    },
+    {
+      "no": 3,
+      "operation_process": "OP-100 Contrôle final",
+      "etape_poste": "Banc contrôle optique sphérique",
+      "mode_defaillance": "Mesure AR incorrecte sur calotte — positionnement instable",
+      "effets_produit": "Fausse acceptation pièce NG",
+      "G": 7,
+      "causes_process": "Positionnement instable de la sphère sur support spectrophotomètre",
+      "O": 3,
+      "controles_process": "Support dédié calotte Ø25mm sur spectrophotomètre",
+      "D": 2,
+      "classe_criticite": "B",
+      "actions_correctives": "Fabrication support calotte Ø25mm normalisé — qualification méthode de mesure",
+      "responsable": "Méthodes",
+      "delai": "2026-06-01",
+      "parametre_cle": "Support mesure spectrophotomètre",
+      "valeur_cible": "Support calotte Ø25mm certifié"
+    }
+  ]
+}

@@ -103,7 +103,8 @@ def enregistrer_reference(
     data_dir.mkdir(exist_ok=True)
 
     dimensions = brief.get("dimensions", {})
-    diametre = dimensions.get("diametre_mm", 0)
+    # Compatibilité multi-catégories : chercher la première dimension disponible
+    diametre = dimensions.get("diametre_mm") or dimensions.get("dim1") or 0
 
     # Générer une désignation lisible à partir du vocabulaire de la catégorie
     vocab = cat.vocabulaire()
@@ -120,7 +121,10 @@ def enregistrer_reference(
         return vocab.get("traitements", {}).get(t, t)
 
     traitements_str = " + ".join(_label_traitement(t) for t in brief.get("traitements", []))
-    designation = f"{type_label} {matiere_label} Ø{diametre:.2f}mm"
+    if diametre:
+        designation = f"{type_label} {matiere_label} Ø{float(diametre):.2f}mm"
+    else:
+        designation = f"{type_label} {matiere_label}"
     if traitements_str:
         designation += f" — {traitements_str}"
     if brief.get("designation_client"):

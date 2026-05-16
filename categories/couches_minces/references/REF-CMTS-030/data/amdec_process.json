@@ -1,0 +1,61 @@
+{
+  "reference": "REF-CMTS-030",
+  "document": "AMDEC Process",
+  "designation": "Glace tonneau saphir Ø30.00mm — Métallisation Ruthénium + Antireflet double face + Traitement dur",
+  "modes_defaillance": [
+    {
+      "no": 1,
+      "operation_process": "OP-55 Métallisation Ruthénium",
+      "etape_poste": "Sputtéring RF magnétron cible Ru",
+      "mode_defaillance": "Cible Ru contaminée — dépôt d'oxyde indésirable (RuO2 brun)",
+      "effets_produit": "Teinte brune au lieu d'anthracite — refus esthétique",
+      "G": 8,
+      "causes_process": "Humidité résiduelle / oxygène résiduel dans l'enceinte",
+      "O": 3,
+      "controles_process": "Analyse spectrophotométrique pièce témoin après dépôt",
+      "D": 2,
+      "classe_criticite": "A",
+      "actions_correctives": "Conditionnement cible Ru à chaque ouverture enceinte — vide résiduel < 2×10⁻⁶ mbar requis",
+      "responsable": "Bureau Technique",
+      "delai": "2026-05-15",
+      "parametre_cle": "Vide résiduel avant dépôt Ru",
+      "valeur_cible": "< 2×10⁻⁶ mbar"
+    },
+    {
+      "no": 2,
+      "operation_process": "OP-85 Traitement dur DLC",
+      "etape_poste": "PACVD DLC",
+      "mode_defaillance": "Délaminaqe traitement dur sur AR existant",
+      "effets_produit": "Écaillage visible en service",
+      "G": 7,
+      "causes_process": "Mauvaise adhérence DLC sur couche SiO2 top-coat AR",
+      "O": 3,
+      "controles_process": "Test adhérence ruban + vieillissement 85°C/24h sur témoins",
+      "D": 2,
+      "classe_criticite": "B",
+      "actions_correctives": "Ajout couche d'accrochage Si intermédiaire entre AR et DLC",
+      "responsable": "Bureau Technique",
+      "delai": "2026-06-01",
+      "parametre_cle": "Épaisseur couche accrochage Si",
+      "valeur_cible": "10–20 nm"
+    },
+    {
+      "no": 3,
+      "operation_process": "OP-100 Contrôle final",
+      "etape_poste": "Banc contrôle final",
+      "mode_defaillance": "Erreur de classement pièce NG libérée",
+      "effets_produit": "Défaut esthétique transmis au client",
+      "G": 8,
+      "causes_process": "Standard visuel ambigu pour teinte Ru — fatigue opérateur",
+      "O": 2,
+      "controles_process": "Comparaison obligatoire sur étalon couleur Ru certifié",
+      "D": 2,
+      "classe_criticite": "B",
+      "actions_correctives": "Création d'un étalon visuel certifié Ru — validation BT + client",
+      "responsable": "Qualité",
+      "delai": "2026-06-01",
+      "parametre_cle": "Étalon couleur Ru",
+      "valeur_cible": "Référence certifiée approuvée client"
+    }
+  ]
+}

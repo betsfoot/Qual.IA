@@ -228,7 +228,6 @@ cats = [
     ("🔍", "Glace nue", "Rectification, polissage\nSaphir, quartz, PMMA\nRa ≤ 5nm poli optique"),
     ("🧱", "Céramique", "Alumine, Zircone Y-TZP\nFrittage, densité Archimède\nHV Vickers, ISO 6474"),
     ("💊", "Pharma", "Dispositifs médicaux\nISO 13485, GMP\nDossier technique CE"),
-    ("✈️", "Aéronautique", "EN 9100, NADCAP\nPièces navigantes\nFMEA AS13004"),
     ("⚙️", "Votre secteur", "Configurable en\nquelques heures\nVocabulaire sur mesure"),
 ]
 for i, (icone, nom, desc) in enumerate(cats):

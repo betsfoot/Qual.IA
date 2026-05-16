@@ -544,7 +544,6 @@ def slide_12_multicategories(prs):
         ("⌚", "Couches\nMinces",  "Glace saphir + dépôts\nCN, AR, PVD, DLC…", BLUE),
         ("🏺", "Glace\nNue",      "Glace saphir/minéral\nsans traitement", GREEN),
         ("⚙", "Céramique",        "Pièces céramique\nZircone, Alumine…", ORANGE),
-        ("✈", "Aéronautique\n(à venir)", "Pièces métal/composite\nAMS, NADCAP…", GRAY),
     ]
     for i, (icon, name, desc, col) in enumerate(cats):
         x = 0.4 + i * 2.38

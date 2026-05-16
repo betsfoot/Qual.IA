@@ -1,0 +1,61 @@
+{
+  "reference": "REF-CMBS-032",
+  "document": "AMDEC Process",
+  "designation": "Glace box saphir Ø32.00mm — Métallisation Chrome clair + Antireflet double face",
+  "modes_defaillance": [
+    {
+      "no": 1,
+      "operation_process": "OP-50 Métallisation Chrome Clair",
+      "etape_poste": "Sputtéring DC magnétron",
+      "mode_defaillance": "Contamination cible chrome — arc électrique",
+      "effets_produit": "Projection de gouttelettes métalliques — aspect NG",
+      "G": 8,
+      "causes_process": "Humidité résiduelle / cible usée en bord",
+      "O": 2,
+      "controles_process": "Inspection vide enceinte avant ouverture + contrôle visuel pièces",
+      "D": 2,
+      "classe_criticite": "B",
+      "actions_correctives": "Nettoyage périodique enceinte — érosion cible suivi radiographique",
+      "responsable": "Maintenance",
+      "delai": "2026-06-01",
+      "parametre_cle": "Pression argon",
+      "valeur_cible": "3×10⁻³ mbar"
+    },
+    {
+      "no": 2,
+      "operation_process": "OP-70 AR Face 1 PVD",
+      "etape_poste": "Évaporateur thermique PVD",
+      "mode_defaillance": "Dépôt AR sur face chromée (inversion chargement)",
+      "effets_produit": "Couche chrome masquée — aspect trouble",
+      "G": 7,
+      "causes_process": "Erreur opérateur orientation pièce",
+      "O": 3,
+      "controles_process": "Check-list orientation avant fermeture enceinte",
+      "D": 3,
+      "classe_criticite": "A",
+      "actions_correctives": "Repère physique peint sur porte-substrat — validation chef d'équipe avant cycle",
+      "responsable": "Méthodes",
+      "delai": "2026-05-15",
+      "parametre_cle": "Orientation face convexe",
+      "valeur_cible": "Face convexe vers le haut (face externe)"
+    },
+    {
+      "no": 3,
+      "operation_process": "OP-80 Retournement F1→F2",
+      "etape_poste": "Poste retournement salle blanche",
+      "mode_defaillance": "Contamination face AR F1 lors du retournement",
+      "effets_produit": "Particule sous le dépôt F2 — défaut visible",
+      "G": 6,
+      "causes_process": "Contact avec surface non propre — gants insuffisants",
+      "O": 3,
+      "controles_process": "Inspection UV après retournement avant F2",
+      "D": 2,
+      "classe_criticite": "B",
+      "actions_correctives": "Retournement uniquement avec gants nitrile neufs — plan de travail nettoyé à l'IPA avant opération",
+      "responsable": "Production",
+      "delai": "2026-06-01",
+      "parametre_cle": "Propreté surface F1",
+      "valeur_cible": "UV clean — 0 particule visible"
+    }
+  ]
+}

@@ -225,6 +225,8 @@ def generer_dit_ia(
             raise
 
     # Extraire le JSON : bloc markdown ou premier { ... dernier }
+    if not raw:
+        raise ValueError("Claude a retourné une réponse vide pour le DIT.")
     if "```" in raw:
         import re as _re
         m = _re.search(r"```(?:json)?\s*([\s\S]+?)```", raw)

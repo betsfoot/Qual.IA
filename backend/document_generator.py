@@ -179,14 +179,20 @@ def _charger_donnees_reference(metadata: dict, categorie=None) -> dict:
     return donnees
 
 
-def _construire_prompt_amdec_produit(brief: dict, source_data: dict, metadata: dict, supplement: dict | None = None, categorie=None) -> str:
+def _construire_prompt_amdec_produit(brief: dict, source_data: dict, metadata: dict, supplement: dict | None = None, categorie=None, refs_composites: dict | None = None) -> str:
     supplement_section = _format_supplement_section(supplement or {}, categorie, "AMDEC_produit", "AMDEC Produit")
+    section_composite = _section_sources_composites(refs_composites, categorie, "AMDEC_produit")
     instruction_supp = (
         "\n7. INTÈGRE les modes défaillance issus des références supplément ci-dessus quand "
         "ils concernent un traitement utilisé par le nouveau produit — ces modes capturent "
         "une connaissance métier spécifique à la typologie qui ne figure pas dans la référence source. "
         "Signale ces ajouts dans les avertissements en citant la référence d'origine."
         if supplement else ""
+    )
+    instruction_composite = (
+        "\n8. SOURCES SPÉCIALISÉES : Pour les modes de défaillance liés à la métallisation, "
+        "utilise la SOURCE MÉTALLISATION ci-dessus. Pour les modes AR, utilise la SOURCE ANTIREFLET."
+        if section_composite else ""
     )
     return f"""Tu dois adapter l'AMDEC Produit de la référence source pour un nouveau produit.
 
@@ -206,7 +212,7 @@ def _construire_prompt_amdec_produit(brief: dict, source_data: dict, metadata: d
 </donnees_client>
 
 ## AMDEC PRODUIT SOURCE (à adapter)
-{json.dumps(source_data.get('AMDEC_produit', {}), ensure_ascii=False, indent=2)}{supplement_section}
+{json.dumps(source_data.get('AMDEC_produit', {}), ensure_ascii=False, indent=2)}{supplement_section}{section_composite}
 
 ## INSTRUCTIONS
 1. Conserve TOUS les modes de défaillance de la référence source — ils restent valides
@@ -216,7 +222,7 @@ def _construire_prompt_amdec_produit(brief: dict, source_data: dict, metadata: d
 3. Si un traitement est absent dans le nouveau produit, supprime les modes associés
 4. Si un traitement est ajouté, signale-le dans les avertissements
 5. Conserve tous les scores G, O, D, IPR sauf si une cote critique change significativement
-6. Mets à jour la désignation et la référence{instruction_supp}
+6. Mets à jour la désignation et la référence{instruction_supp}{instruction_composite}
 
 Retourne un JSON avec la même structure que l'AMDEC source, avec :
 - "reference" : nouvelle référence temporaire (ex: "NOUVEAU-{list(brief.get('dimensions', {}).values())[0] if brief.get('dimensions') else 'X'}")
@@ -226,8 +232,9 @@ Retourne un JSON avec la même structure que l'AMDEC source, avec :
 - "confiance_globale" : score 0.0 à 1.0 (1.0 = adaptation directe sans ambiguïté)"""
 
 
-def _construire_prompt_amdec_process(brief: dict, source_data: dict, metadata: dict, supplement: dict | None = None, categorie=None) -> str:
+def _construire_prompt_amdec_process(brief: dict, source_data: dict, metadata: dict, supplement: dict | None = None, categorie=None, refs_composites: dict | None = None) -> str:
     supplement_section = _format_supplement_section(supplement or {}, categorie, "AMDEC_process", "AMDEC Process")
+    section_composite = _section_sources_composites(refs_composites, categorie, "AMDEC_process")
     instruction_supp = (
         "\n6. INTÈGRE les modes process issus des références supplément ci-dessus dès qu'ils "
         "concernent un traitement utilisé par le nouveau produit — ces modes capturent une "
@@ -235,6 +242,14 @@ def _construire_prompt_amdec_process(brief: dict, source_data: dict, metadata: d
         "qui ne figure pas dans la référence source. Signale ces ajouts dans les avertissements "
         "en citant la référence d'origine."
         if supplement else ""
+    )
+    instruction_composite = (
+        "\n7. SOURCES SPÉCIALISÉES PRIORITAIRES : Pour toutes les opérations de dépôt "
+        "métallisation (cible, paramètres PVD/sputtering, contrôles épaisseur), utilise "
+        "EXCLUSIVEMENT la SOURCE MÉTALLISATION. Pour toutes les opérations antireflet "
+        "(dépôt couches optiques, contrôle réflectance), utilise EXCLUSIVEMENT la SOURCE "
+        "ANTIREFLET. Ces sources sont plus fiables que la référence globale pour ces étapes."
+        if section_composite else ""
     )
     return f"""Tu dois adapter l'AMDEC Process de la référence source pour un nouveau produit.
 
@@ -252,15 +267,15 @@ def _construire_prompt_amdec_process(brief: dict, source_data: dict, metadata: d
 - Exigences spéciales : {brief.get('exigences_speciales', 'Aucune')}
 </donnees_client>
 
-## AMDEC PROCESS SOURCE (à adapter)
-{json.dumps(source_data.get('AMDEC_process', {}), ensure_ascii=False, indent=2)}{supplement_section}
+## AMDEC PROCESS SOURCE (structure de base à adapter)
+{json.dumps(source_data.get('AMDEC_process', {}), ensure_ascii=False, indent=2)}{supplement_section}{section_composite}
 
 ## INSTRUCTIONS
 1. Conserve tous les modes process liés aux traitements présents dans le nouveau produit
 2. Adapte les valeurs cibles dimensionnelles selon les nouvelles cotes
 3. Supprime les modes process liés à des traitements absents dans le nouveau produit
 4. Conserve les scores G, O, D sauf changement de process majeur
-5. Mets à jour désignation et référence{instruction_supp}
+5. Mets à jour désignation et référence{instruction_supp}{instruction_composite}
 
 Retourne un JSON avec la même structure que l'AMDEC Process source, avec :
 - "reference", "designation", "modes_defaillance" (adaptés)
@@ -268,10 +283,68 @@ Retourne un JSON avec la même structure que l'AMDEC Process source, avec :
 - "confiance_globale" : score 0.0 à 1.0"""
 
 
-def _construire_prompt_gamme(brief: dict, source_data: dict, metadata: dict) -> str:
+def _section_sources_composites(refs_composites: dict | None, categorie, doc_key: str) -> str:
+    """
+    Formate la section des sources composites pour injection dans un prompt.
+    refs_composites est le dict retourné par trouver_references_composites().
+    doc_key : "AMDEC_process", "AMDEC_produit" ou "gamme".
+    """
+    if not refs_composites or not refs_composites.get("est_composite"):
+        return ""
+
+    parts = ["\n\n## SOURCES SPÉCIALISÉES (génération composite)"]
+    parts.append(
+        "\nLe produit demandé combine des traitements issus de plusieurs références. "
+        "Pour chaque groupe de traitements, utilise la SOURCE SPÉCIALISÉE indiquée — "
+        "elle est plus fiable que la référence globale pour ce traitement précis."
+    )
+
+    ref_met = refs_composites.get("metallisation")
+    ref_ar = refs_composites.get("ar")
+
+    if ref_met:
+        try:
+            met_data = _charger_donnees_reference(ref_met.metadata, categorie)
+            doc_data = met_data.get(doc_key, {})
+            parts.append(
+                f"\n### SOURCE MÉTALLISATION : {ref_met.reference} ({ref_met.designation})\n"
+                f"Traitements : {format_traitements_str(ref_met.metadata.get('traitements', []))}\n"
+                f"**⚡ INSTRUCTION : Pour toutes les opérations/modes liés au dépôt de métallisation "
+                f"(couche CN, Or, Chrome, Ruthénium, etc.), base-toi sur cette source — "
+                f"paramètres cible, défaillances spécifiques à cette chimie, contrôles spectro.**\n"
+                f"```json\n{json.dumps(doc_data, ensure_ascii=False, indent=2)}\n```"
+            )
+        except Exception:
+            pass
+
+    if ref_ar:
+        try:
+            ar_data = _charger_donnees_reference(ref_ar.metadata, categorie)
+            doc_data = ar_data.get(doc_key, {})
+            parts.append(
+                f"\n### SOURCE ANTIREFLET : {ref_ar.reference} ({ref_ar.designation})\n"
+                f"Traitements : {format_traitements_str(ref_ar.metadata.get('traitements', []))}\n"
+                f"**⚡ INSTRUCTION : Pour toutes les opérations/modes liés aux couches antireflet "
+                f"(AR simple/double, dépôt optique, contrôle réflectance), base-toi sur cette source.**\n"
+                f"```json\n{json.dumps(doc_data, ensure_ascii=False, indent=2)}\n```"
+            )
+        except Exception:
+            pass
+
+    return "\n".join(parts) if len(parts) > 2 else ""
+
+
+def _construire_prompt_gamme(brief: dict, source_data: dict, metadata: dict, refs_composites: dict | None = None, categorie=None) -> str:
+    section_composite = _section_sources_composites(refs_composites, categorie, "gamme")
+    instruction_composite = (
+        "\n7. SOURCES SPÉCIALISÉES : Pour les opérations métallisation, utilise les paramètres "
+        "de la SOURCE MÉTALLISATION ci-dessus. Pour les opérations AR, utilise la SOURCE ANTIREFLET. "
+        "La référence source principale sert de structure et de base pour les autres opérations."
+        if section_composite else ""
+    )
     return f"""Tu dois adapter la Gamme de Production de la référence source pour un nouveau produit.
 
-## RÉFÉRENCE SOURCE
+## RÉFÉRENCE SOURCE (structure de base)
 - Référence : {metadata['reference']}
 - Désignation : {metadata['designation']}
 - Traitements source : {format_traitements_str(metadata.get("traitements", []))}
@@ -286,7 +359,7 @@ def _construire_prompt_gamme(brief: dict, source_data: dict, metadata: dict) -> 
 </donnees_client>
 
 ## GAMME SOURCE (à adapter)
-{json.dumps(source_data.get('gamme', {}), ensure_ascii=False, indent=2)}
+{json.dumps(source_data.get('gamme', {}), ensure_ascii=False, indent=2)}{section_composite}
 
 ## INSTRUCTIONS
 1. Conserve TOUTES les opérations présentes dans les traitements du nouveau produit
@@ -294,7 +367,7 @@ def _construire_prompt_gamme(brief: dict, source_data: dict, metadata: dict) -> 
 3. Adapte les critères d'acceptation liés aux dimensions
 4. Supprime les opérations liées à des traitements absents
 5. Mets "À DÉFINIR" pour les paramètres machines spécifiques au nouveau produit (ex: puissance cathode)
-6. Conserve les temps opératoires sauf si la taille change significativement le process
+6. Conserve les temps opératoires sauf si la taille change significativement le process{instruction_composite}
 
 Retourne un JSON avec la même structure que la gamme source, avec :
 - "reference", "designation", "operations" (adaptées)
@@ -362,20 +435,29 @@ def _appeler_claude(prompt: str, client: anthropic.Anthropic, system_prompt: str
                 time.sleep(delai)
                 continue
             raise
+        except (anthropic.APIConnectionError, anthropic.APITimeoutError) as e:
+            if delai is not None:
+                logging.warning(
+                    "Tentative %d/%d — Erreur réseau/timeout (%s). Nouvelle tentative dans %ds…",
+                    tentative, len(delais) + 1, type(e).__name__, delai,
+                )
+                time.sleep(delai)
+                continue
+            raise
 
 
-def generer_amdec_produit(brief, metadata, source_data, client, system_prompt=None, supplement=None, categorie=None) -> dict:
-    prompt = _construire_prompt_amdec_produit(brief, source_data, metadata, supplement=supplement, categorie=categorie)
+def generer_amdec_produit(brief, metadata, source_data, client, system_prompt=None, supplement=None, categorie=None, refs_composites=None) -> dict:
+    prompt = _construire_prompt_amdec_produit(brief, source_data, metadata, supplement=supplement, categorie=categorie, refs_composites=refs_composites)
     return _parse_json_response(_appeler_claude(prompt, client, system_prompt))
 
 
-def generer_amdec_process(brief, metadata, source_data, client, system_prompt=None, supplement=None, categorie=None) -> dict:
-    prompt = _construire_prompt_amdec_process(brief, source_data, metadata, supplement=supplement, categorie=categorie)
+def generer_amdec_process(brief, metadata, source_data, client, system_prompt=None, supplement=None, categorie=None, refs_composites=None) -> dict:
+    prompt = _construire_prompt_amdec_process(brief, source_data, metadata, supplement=supplement, categorie=categorie, refs_composites=refs_composites)
     return _parse_json_response(_appeler_claude(prompt, client, system_prompt))
 
 
-def generer_gamme(brief, metadata, source_data, client, system_prompt=None) -> dict:
-    prompt = _construire_prompt_gamme(brief, source_data, metadata)
+def generer_gamme(brief, metadata, source_data, client, system_prompt=None, categorie=None, refs_composites=None) -> dict:
+    prompt = _construire_prompt_gamme(brief, source_data, metadata, refs_composites=refs_composites, categorie=categorie)
     return _parse_json_response(_appeler_claude(prompt, client, system_prompt))
 
 
@@ -574,7 +656,7 @@ def generer_dossier_variantes(
             "gamme": g,
             "variante": v,
             "metadonnees_generation": {
-                "reference_source": metadata["reference"],
+                "reference_source": metadata.get("reference", ""),
                 "score_similarite": resultat_similarite.score,
                 "mode_generation": resultat_similarite.mode,
                 "confiance_amdec_produit": ap.get("confiance_globale", 0),
@@ -596,6 +678,7 @@ def generer_dossier_complet(
     categorie=None,
     base_dir: Path = None,
     mode_squelette: bool = False,
+    refs_composites: dict | None = None,
 ) -> dict:
     """
     Point d'entrée principal. Génère les 3 documents pour un brief donné.
@@ -604,6 +687,9 @@ def generer_dossier_complet(
     Si mode_squelette=True, Claude ne génère que la structure sans aucune
     valeur numérique inventée (tous les champs numériques → '[À DÉFINIR EN ATELIER]').
     Utiliser uniquement quand le score de similarité est entre 30% et 60%.
+
+    Si refs_composites est fourni (dict issu de trouver_references_composites()),
+    les AMDEC process/produit et la gamme utilisent les sources spécialisées par traitement.
     """
     api_key = get_secret("ANTHROPIC_API_KEY")
 
@@ -622,24 +708,35 @@ def generer_dossier_complet(
     # Recherche des références supplément qui partagent les mêmes typologies de traitement
     supplement = _trouver_refs_supplement(brief, metadata.get("reference", ""), categorie)
 
-    amdec_produit = generer_amdec_produit(brief, metadata, source_data, client, system_prompt, supplement=supplement, categorie=categorie)
-    amdec_process = generer_amdec_process(brief, metadata, source_data, client, system_prompt, supplement=supplement, categorie=categorie)
-    gamme = generer_gamme(brief, metadata, source_data, client, system_prompt)
+    amdec_produit = generer_amdec_produit(brief, metadata, source_data, client, system_prompt, supplement=supplement, categorie=categorie, refs_composites=refs_composites)
+    amdec_process = generer_amdec_process(brief, metadata, source_data, client, system_prompt, supplement=supplement, categorie=categorie, refs_composites=refs_composites)
+    gamme = generer_gamme(brief, metadata, source_data, client, system_prompt, categorie=categorie, refs_composites=refs_composites)
 
     sources_supplement = {
         cle: [r["reference"] for r in refs]
         for cle, refs in supplement.items()
     }
 
+    # Résumé des sources composites pour les métadonnées
+    sources_composites_meta = {}
+    if refs_composites and refs_composites.get("est_composite"):
+        if refs_composites.get("metallisation"):
+            sources_composites_meta["metallisation"] = refs_composites["metallisation"].reference
+        if refs_composites.get("ar"):
+            sources_composites_meta["ar"] = refs_composites["ar"].reference
+
     return {
         "amdec_produit": amdec_produit,
         "amdec_process": amdec_process,
         "gamme": gamme,
         "metadonnees_generation": {
-            "reference_source": metadata["reference"],
+            "reference_source": metadata.get("reference", ""),
             "score_similarite": resultat_similarite.score,
             "mode_generation": resultat_similarite.mode,
             "sources_supplement": sources_supplement,
+            "sources_composites": sources_composites_meta,
+            "est_composite": bool(sources_composites_meta),
+            "resume_composite": refs_composites.get("resume", "") if refs_composites else "",
             "confiance_amdec_produit": amdec_produit.get("confiance_globale", 0),
             "confiance_amdec_process": amdec_process.get("confiance_globale", 0),
             "confiance_gamme": gamme.get("confiance_globale", 0),

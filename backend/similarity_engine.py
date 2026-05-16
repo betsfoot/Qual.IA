@@ -180,6 +180,79 @@ def _score_numeric_proximity(brief: dict, ref_meta: dict, cle: str = "epaisseur_
     return 0.0
 
 
+# ─── Extraction des valeurs lisibles pour le tableau de comparaison ─────────
+
+def _extraire_valeur_affichage(brief: dict, ref_meta: dict, nom_critere: str, params: dict) -> tuple[str, str]:
+    """Retourne (valeur_brief, valeur_ref) lisibles pour le tableau de comparaison visuel."""
+    type_comp = params.get("type_comparaison", "exact_match")
+
+    if type_comp == "exact_match":
+        brief_val = brief.get(nom_critere) or "—"
+        ref_val = ref_meta.get(nom_critere) or "—"
+        return str(brief_val), str(ref_val)
+
+    elif type_comp == "metallisation_match":
+        brief_code, brief_typo = _trouver_traitement(brief.get("traitements", []), prefixe="metallisation_")
+        ref_code, ref_typo = _trouver_traitement(ref_meta.get("traitements", []), prefixe="metallisation_")
+        brief_str = brief_code.replace("metallisation_", "").upper() if brief_code else "Aucune"
+        ref_str = ref_code.replace("metallisation_", "").upper() if ref_code else "Aucune"
+        if brief_typo:
+            brief_str += f" ({brief_typo})"
+        if ref_typo:
+            ref_str += f" ({ref_typo})"
+        return brief_str, ref_str
+
+    elif type_comp == "ar_levels":
+        _AR_LABELS = {
+            "antireflet_double_face": "AR double face",
+            "antireflet_simple_face": "AR simple face",
+        }
+
+        def _trouver_ar(traitements):
+            for t in traitements:
+                code, typo = normaliser_traitement(t)
+                if code in ("antireflet_double_face", "antireflet_simple_face"):
+                    return code, typo
+            return None, None
+
+        brief_code, brief_typo = _trouver_ar(brief.get("traitements", []))
+        ref_code, ref_typo = _trouver_ar(ref_meta.get("traitements", []))
+        brief_str = _AR_LABELS.get(brief_code, "Aucun AR") if brief_code else "Aucun AR"
+        ref_str = _AR_LABELS.get(ref_code, "Aucun AR") if ref_code else "Aucun AR"
+        if brief_typo:
+            brief_str += f" ({brief_typo})"
+        if ref_typo:
+            ref_str += f" ({ref_typo})"
+        return brief_str, ref_str
+
+    elif type_comp in ("diameter_range", "numeric_proximity"):
+        cle_defaut = "diametre_mm" if type_comp == "diameter_range" else "epaisseur_mm"
+        cle = params.get("cle_dimension", cle_defaut)
+        brief_val = brief.get("dimensions", {}).get(cle)
+        ref_val = ref_meta.get("dimensions", {}).get(cle)
+        brief_str = f"{brief_val:.2f} mm" if brief_val is not None else "—"
+        ref_str = f"{ref_val:.2f} mm" if ref_val is not None else "—"
+        return brief_str, ref_str
+
+    return "—", "—"
+
+
+def extraire_valeurs_comparaison(brief: dict, ref_meta: dict, criteres: dict) -> dict:
+    """
+    Retourne un dict {nom_critere: {"brief": str, "ref": str, "label": str}}
+    pour l'affichage du tableau de comparaison Votre demande ↔ Référence.
+    """
+    result = {}
+    for nom_critere, params in criteres.items():
+        brief_val, ref_val = _extraire_valeur_affichage(brief, ref_meta, nom_critere, params)
+        result[nom_critere] = {
+            "brief": brief_val,
+            "ref": ref_val,
+            "label": params.get("description", nom_critere),
+        }
+    return result
+
+
 # Mapping nom de comparaison → fonction (signature: brief, ref_meta, nom_critere, params)
 COMPARATEURS = {
     "exact_match":        lambda b, r, k, p: _score_exact_match(b.get(k), r.get(k)),
@@ -325,8 +398,8 @@ def trouver_meilleure_reference(brief: dict, categorie: Categorie | str) -> Resu
         mode = "manuelle"
 
     return ResultatSimilarite(
-        reference=meilleure["reference"],
-        designation=meilleure["designation"],
+        reference=meilleure.get("reference", meilleure.get("_chemin", "INCONNU")),
+        designation=meilleure.get("designation", ""),
         score=meilleur_score,
         detail_scores=meilleur_detail,
         mode=mode,
@@ -334,6 +407,135 @@ def trouver_meilleure_reference(brief: dict, categorie: Categorie | str) -> Resu
         metadata=meilleure,
         categorie=categorie.code,
     )
+
+
+def trouver_references_composites(brief: dict, categorie) -> dict:
+    """
+    Retourne les meilleures références sources par groupe de critères.
+
+    Au lieu d'une seule référence globale, identifie :
+    - La meilleure référence pour la métallisation (même code métallisation)
+    - La meilleure référence pour l'AR (même type AR)
+    - La meilleure référence globale (score total)
+
+    Retourne un dict :
+    {
+      "globale":       ResultatSimilarite,
+      "metallisation": ResultatSimilarite | None,  # None si même que globale
+      "ar":            ResultatSimilarite | None,   # None si même que globale
+      "est_composite": bool,                        # True si les sources diffèrent
+      "resume":        str,                         # Texte lisible pour l'UI
+    }
+    """
+    if isinstance(categorie, str):
+        from backend.category_manager import charger_categorie
+        categorie = charger_categorie(categorie)
+    if categorie is None:
+        return {"globale": None, "metallisation": None, "ar": None, "est_composite": False, "resume": ""}
+
+    criteres = categorie.criteres_similarite()
+    references = charger_references(categorie)
+    if not references:
+        return {"globale": None, "metallisation": None, "ar": None, "est_composite": False, "resume": ""}
+
+    # ── Extraire les codes brief ──────────────────────────────────────────────
+    brief_met_code, _ = _trouver_traitement(brief.get("traitements", []), prefixe="metallisation_")
+
+    def _brief_ar_code():
+        for t in brief.get("traitements", []):
+            code, _ = normaliser_traitement(t)
+            if code in ("antireflet_double_face", "antireflet_simple_face"):
+                return code
+        return None
+    brief_ar_code = _brief_ar_code()
+
+    # ── Scorer toutes les références ─────────────────────────────────────────
+    scored = []
+    for ref_meta in references:
+        score, detail = _calculer_score(brief, ref_meta, criteres)
+        scored.append((score, detail, ref_meta))
+
+    if not scored:
+        return {"globale": None, "metallisation": None, "ar": None, "est_composite": False, "resume": ""}
+
+    # ── Meilleure globale ─────────────────────────────────────────────────────
+    scored.sort(key=lambda x: x[0], reverse=True)
+    best_score, best_detail, best_ref = scored[0]
+
+    def _make_resultat(score, detail, ref_meta):
+        if score >= SEUIL_AUTO:
+            mode = "automatique"
+        elif score >= SEUIL_AVERTISSEMENT:
+            mode = "avertissement"
+        else:
+            mode = "manuelle"
+        return ResultatSimilarite(
+            reference=ref_meta.get("reference", ref_meta.get("_chemin", "INCONNU")),
+            designation=ref_meta.get("designation", ""),
+            score=score,
+            detail_scores=detail,
+            mode=mode,
+            avertissements=_generer_avertissements(brief, ref_meta, detail, criteres),
+            metadata=ref_meta,
+            categorie=categorie.code,
+        )
+
+    globale = _make_resultat(best_score, best_detail, best_ref)
+
+    # ── Meilleure pour la métallisation ──────────────────────────────────────
+    ref_met = None
+    if brief_met_code:
+        # Filtrer les références ayant le MÊME code métallisation
+        met_candidates = []
+        for score, detail, ref_meta in scored:
+            ref_met_code, _ = _trouver_traitement(ref_meta.get("traitements", []), prefixe="metallisation_")
+            if ref_met_code == brief_met_code:
+                met_candidates.append((score, detail, ref_meta))
+        if met_candidates:
+            met_candidates.sort(key=lambda x: x[0], reverse=True)
+            ms, md, mr = met_candidates[0]
+            if mr.get("reference") != best_ref.get("reference"):
+                ref_met = _make_resultat(ms, md, mr)
+
+    # ── Meilleure pour l'AR ───────────────────────────────────────────────────
+    ref_ar = None
+    if brief_ar_code:
+        ar_candidates = []
+        for score, detail, ref_meta in scored:
+            for t in ref_meta.get("traitements", []):
+                code, _ = normaliser_traitement(t)
+                if code == brief_ar_code:
+                    ar_candidates.append((score, detail, ref_meta))
+                    break
+        if ar_candidates:
+            ar_candidates.sort(key=lambda x: x[0], reverse=True)
+            as_, ad, ar = ar_candidates[0]
+            if ar.get("reference") != best_ref.get("reference") and (
+                ref_met is None or ar.get("reference") != ref_met.reference
+            ):
+                ref_ar = _make_resultat(as_, ad, ar)
+
+    # ── Résumé lisible ────────────────────────────────────────────────────────
+    est_composite = (ref_met is not None) or (ref_ar is not None)
+    parties = []
+    if ref_met:
+        met_label = brief_met_code.replace("metallisation_", "").upper()
+        parties.append(f"Métallisation {met_label} depuis {ref_met.reference}")
+    if ref_ar:
+        ar_label = "AR double" if brief_ar_code == "antireflet_double_face" else "AR simple"
+        parties.append(f"{ar_label} depuis {ref_ar.reference}")
+    if not parties:
+        resume = f"Source unique : {globale.reference}"
+    else:
+        resume = " · ".join(parties) + f" · Base : {globale.reference}"
+
+    return {
+        "globale": globale,
+        "metallisation": ref_met,
+        "ar": ref_ar,
+        "est_composite": est_composite,
+        "resume": resume,
+    }
 
 
 def brief_depuis_formulaire(

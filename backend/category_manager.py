@@ -97,6 +97,9 @@ def lister_categories() -> list[Categorie]:
             continue
         try:
             config = json.loads(config_path.read_text(encoding="utf-8"))
+            # Ignorer les catégories explicitement désactivées
+            if config.get("disabled", False):
+                continue
             categories.append(Categorie(
                 code=config.get("code", cat_dir.name),
                 nom=config.get("nom", cat_dir.name),

@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env", override=True)
 
 from backend.config import get_secret
-from backend.similarity_engine import brief_depuis_formulaire, trouver_meilleure_reference
+from backend.similarity_engine import brief_depuis_formulaire, trouver_meilleure_reference, extraire_valeurs_comparaison, trouver_references_composites
 from backend.document_generator import generer_dossier_complet, generer_dossier_variantes
 from backend.reference_manager import (
     lister_references,
@@ -144,6 +144,7 @@ with st.sidebar:
         st.session_state["resultat_similarite"] = None
         st.session_state["brief"] = None
         st.session_state["dossier_genere"] = None
+        st.session_state["refs_composites"] = None
 
     categorie_active = charger_categorie(cat_code_selectionne)
     st.caption(categorie_active.description)
@@ -176,7 +177,7 @@ with st.sidebar:
     refs = lister_references(categorie_active)
     st.metric(f"Références — {categorie_active.nom}", len(refs))
     for r in refs[:8]:
-        st.caption(f"`{r['reference']}` — {r.get('designation', '')[:40]}…")
+        st.caption(f"`{r.get('reference', '?')}` — {r.get('designation', '')[:40]}…")
     if len(refs) > 8:
         st.caption(f"… et {len(refs) - 8} autres")
 
@@ -358,7 +359,7 @@ if page == "📥 Importer un Excel":
                     key=f"imp_tol_{cle}_{cat_code_selectionne}",
                 )
             statut = st.selectbox("Statut", ["valide", "brouillon"],
-                format_func=lambda x: {"valide": "✅ Validé", "brouillon": "📝 Brouillon"}[x])
+                format_func=lambda x: {"valide": "✅ Validé", "brouillon": "📝 Brouillon"}.get(x, x))
             approuve_par = st.text_input("Approuvé par", placeholder="Nom du valideur")
 
         dims_imp = {}
@@ -650,7 +651,7 @@ if page == "📋 Workflow":
             if ipr >= seuil_ipr:
                 result.append({
                     "ipr": ipr,
-                    "mode": m.get("mode_defaillance") or m.get("mode_defaillance", ""),
+                    "mode": m.get("mode_defaillance", ""),
                     "effet": m.get("effets_defaillance") or m.get("effets_produit", ""),
                     "G": m.get("G", "?"), "O": m.get("O", "?"), "D": m.get("D", "?"),
                     "classe": m.get("classe_criticite", ""),
@@ -1149,7 +1150,10 @@ if page == "📚 Gestion de la base":
     if f_matiere:
         filtered = [r for r in filtered if r.get("matiere") in f_matiere]
     if f_traitement:
-        filtered = [r for r in filtered if any(t in r.get("traitements", []) for t in f_traitement)]
+        # Les traitements peuvent être des str ou des dict {"code":..., "typologie":...}
+        def _codes_traitement(traitements_list):
+            return {t.get("code", "") if isinstance(t, dict) else str(t) for t in traitements_list}
+        filtered = [r for r in filtered if _codes_traitement(r.get("traitements", [])) & set(f_traitement)]
     if f_statut:
         filtered = [r for r in filtered if r.get("statut") in f_statut]
 
@@ -2152,9 +2156,14 @@ if submitted:
 
             with st.spinner("Analyse de similarité…"):
                 resultat = trouver_meilleure_reference(brief, categorie_active)
+                try:
+                    refs_comp = trouver_references_composites(brief, categorie_active)
+                except Exception:
+                    refs_comp = None
 
             st.session_state.brief = brief
             st.session_state.resultat_similarite = resultat
+            st.session_state.refs_composites = refs_comp
             st.session_state.dossier_genere = None
             st.session_state.dossiers_variantes = None
 
@@ -2223,6 +2232,12 @@ if mode_variantes:
 else:
     st.session_state.variantes_config = []
 
+# ─── Seuils de garde qualité (définis ici pour être accessibles dès l'étape 2)
+# Ne pas modifier sans validation Responsable Méthodes.
+_SEUIL_GENERATION_NORMALE = 0.60   # >= 60% : génération directe depuis référence connue
+_SEUIL_GENERATION_GARDE   = 0.30   # 30–60% : avertissement + squelette, confirmation requise
+                                    # < 30%  : blocage complet, aucun bouton de génération
+
 # ─── ÉTAPE 2 : Similarité ────────────────────────────────────────────────────
 
 if st.session_state.resultat_similarite is not None:
@@ -2249,15 +2264,80 @@ if st.session_state.resultat_similarite is not None:
             "l'IA proposera un dossier à compléter, à éditer fortement à l'étape ④."
         )
 
-    with st.expander("Détail des scores par critère"):
-        criteres_config = categorie_active.criteres_similarite()
-        lignes = ["| Critère | Poids | Score | Contribution |", "|---|---|---|---|"]
+    # ─── Tableau de comparaison visuel ───────────────────────────────────────
+    criteres_config = categorie_active.criteres_similarite()
+    valeurs_comp = extraire_valeurs_comparaison(brief or {}, res.metadata, criteres_config)
+
+    def _indicateur_sim(score: float) -> str:
+        if score >= 0.95:
+            return "✅"
+        if score >= 0.5:
+            return "⚠️"
+        return "❌"
+
+    def _barre_sim(score: float) -> str:
+        filled = int(round(score * 8))
+        return "█" * filled + "░" * (8 - filled)
+
+    def _label_court(desc: str) -> str:
+        for sep in [" —", " ("]:
+            if sep in desc:
+                return desc.split(sep)[0].strip()
+        return desc
+
+    st.markdown("**🔍 Comparaison — Votre demande ↔ Référence trouvée**")
+    with st.container(border=True):
+        hcols = st.columns([0.7, 2.5, 2, 2, 1.5])
+        hcols[0].markdown("**·**")
+        hcols[1].markdown("**Critère**")
+        hcols[2].markdown("**Votre demande**")
+        hcols[3].markdown("**Référence**")
+        hcols[4].markdown("**Score**")
+        st.divider()
         for critere, params_c in criteres_config.items():
-            score_critere = res.detail_scores.get(critere, 0)
+            score_critere = res.detail_scores.get(critere, 0.0)
+            vals = valeurs_comp.get(critere, {})
+            label = _label_court(params_c.get("description", critere))
             poids = params_c.get("poids", 0)
-            label = params_c.get("description", critere)
-            lignes.append(f"| {label} | {poids:.0%} | {score_critere:.0%} | {score_critere * poids:.2%} |")
-        st.markdown("\n".join(lignes))
+            row = st.columns([0.7, 2.5, 2, 2, 1.5])
+            row[0].markdown(_indicateur_sim(score_critere))
+            row[1].markdown(f"{label}  \n<small style='color:grey'>poids {poids:.0%}</small>", unsafe_allow_html=True)
+            row[2].markdown(f"`{vals.get('brief', '—')}`")
+            row[3].markdown(f"`{vals.get('ref', '—')}`")
+            row[4].markdown(f"{_barre_sim(score_critere)} **{score_critere:.0%}**")
+
+    # ─── Phrase de résumé automatique ────────────────────────────────────────
+    _phrases_ok, _phrases_proche, _phrases_diff = [], [], []
+    for critere, params_c in criteres_config.items():
+        score_critere = res.detail_scores.get(critere, 0.0)
+        label = _label_court(params_c.get("description", critere))
+        vals = valeurs_comp.get(critere, {})
+        bv = vals.get("brief", "—")
+        rv = vals.get("ref", "—")
+        if score_critere >= 0.95:
+            _phrases_ok.append(f"**{label}**")
+        elif score_critere >= 0.7:
+            _phrases_proche.append(f"**{label}** (demandé : {bv}, référence : {rv})")
+        elif score_critere >= 0.5:
+            _phrases_diff.append(f"**{label}** diffère notablement : vous demandez {bv}, la référence a {rv}")
+        elif score_critere > 0.0:
+            _phrases_diff.append(f"**{label}** diffère significativement : vous demandez {bv}, la référence a {rv}")
+        else:
+            _phrases_diff.append(f"**{label}** ne correspond pas du tout : vous demandez {bv}, la référence a {rv}")
+
+    _resume_parts = []
+    if _phrases_ok:
+        _resume_parts.append(f"{', '.join(_phrases_ok)} {'correspondent' if len(_phrases_ok) > 1 else 'correspond'} parfaitement")
+    if _phrases_proche:
+        _resume_parts.append(". ".join(_phrases_proche))
+    if _phrases_diff:
+        _resume_parts.append(". ".join(_phrases_diff))
+
+    if _resume_parts:
+        _resume_txt = ". ".join(_resume_parts) + "."
+        _resume_txt = _resume_txt[0].upper() + _resume_txt[1:]
+        with st.expander("📝 Résumé de l'analyse en clair", expanded=True):
+            st.markdown(_resume_txt)
 
     if res.avertissements:
         for a in res.avertissements:
@@ -2311,10 +2391,7 @@ if st.session_state.resultat_similarite is not None:
                         ph_v.error(f"Erreur : {e}")
 
 # ─── ÉTAPE 3 : Génération ────────────────────────────────────────────────────
-# Seuils de garde qualité (ne pas modifier sans validation Responsable Méthodes)
-_SEUIL_GENERATION_NORMALE = 0.60   # >= 60% : génération directe depuis référence connue
-_SEUIL_GENERATION_GARDE   = 0.30   # 30–60% : avertissement + squelette, confirmation requise
-                                    # < 30%  : blocage complet, aucun bouton de génération
+# (Seuils de garde qualité définis plus haut, avant l'étape 2)
 
 if (
     st.session_state.resultat_similarite is not None
@@ -2425,6 +2502,10 @@ if (
                 st.error(str(e))
                 api_key = ""
             if api_key:
+                # Afficher le bandeau composite avant de lancer
+                refs_comp = st.session_state.get("refs_composites")
+                if refs_comp and refs_comp.get("est_composite"):
+                    st.info(f"📚 **Génération composite** : {refs_comp['resume']}")
                 placeholder = st.empty()
                 placeholder.info("Génération en cours… (30–90 secondes). En cas de surcharge API, jusqu'à 3 tentatives automatiques.")
                 try:
@@ -2432,6 +2513,7 @@ if (
                         brief=st.session_state.brief,
                         resultat_similarite=res,
                         categorie=categorie_active,
+                        refs_composites=refs_comp,
                     )
                     st.session_state.dossier_genere = dossier
                     placeholder.success("Documents générés avec succès !")
