@@ -97,6 +97,7 @@ def charger_reference_complete(categorie, code: str) -> dict:
         ("amdec_produit", "data/amdec_produit.json"),
         ("amdec_process", "data/amdec_process.json"),
         ("gamme", "data/gamme.json"),
+        ("plan_controle", "data/plan_controle.json"),
     ]:
         chemin = ref_dir / fichier
         if chemin.exists():
@@ -147,6 +148,7 @@ def sauvegarder_modifications(categorie, code: str, metadata: dict, data: dict |
             ("amdec_produit", "amdec_produit.json"),
             ("amdec_process", "amdec_process.json"),
             ("gamme", "gamme.json"),
+            ("plan_controle", "plan_controle.json"),
         ]:
             if nom in data:
                 (data_dir / fichier).write_text(

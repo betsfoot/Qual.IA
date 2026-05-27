@@ -8,7 +8,8 @@ complète du workflow (statut `libere` ou `approuve`).
 
 import json
 import re
-from datetime import date
+import shutil
+from datetime import date, datetime
 from pathlib import Path
 
 from backend.category_manager import Categorie, charger_categorie
@@ -27,6 +28,62 @@ def _resoudre_categorie(categorie) -> Categorie:
 def _slug_reference(code: str) -> str:
     code = code.strip().upper().replace(" ", "-")
     return re.sub(r"[^A-Z0-9-]", "", code)
+
+
+# ─── Versioning ───────────────────────────────────────────────────────────────
+
+def archiver_version(ref_dir: Path) -> Path | None:
+    """
+    Archive la version actuelle d'une référence avant écrasement.
+
+    Copie metadata.json et data/ dans un sous-dossier :
+      historique/{YYYY-MM-DDTHH-MM-SS}/
+
+    Retourne le chemin de l'archive créée, ou None si rien à archiver.
+    """
+    metadata_path = ref_dir / "metadata.json"
+    data_dir = ref_dir / "data"
+    if not metadata_path.exists():
+        return None
+
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    archive_dir = ref_dir / "historique" / timestamp
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    shutil.copy2(metadata_path, archive_dir / "metadata.json")
+    if data_dir.exists():
+        shutil.copytree(data_dir, archive_dir / "data", dirs_exist_ok=True)
+
+    return archive_dir
+
+
+def lister_historique(categorie, code: str) -> list[dict]:
+    """
+    Retourne la liste des versions archivées d'une référence, de la plus récente à la plus ancienne.
+    Chaque entrée : {"timestamp": str, "chemin": str, "indice_revision": str, "statut": str}
+    """
+    cat = _resoudre_categorie(categorie)
+    historique_dir = cat.references_dir / _slug_reference(code) / "historique"
+    if not historique_dir.exists():
+        return []
+
+    versions = []
+    for version_dir in sorted(historique_dir.iterdir(), reverse=True):
+        if not version_dir.is_dir():
+            continue
+        meta_path = version_dir / "metadata.json"
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+        except Exception:
+            meta = {}
+        versions.append({
+            "timestamp": version_dir.name,
+            "chemin": str(version_dir),
+            "indice_revision": meta.get("indice_revision", "?"),
+            "statut": meta.get("statut", "?"),
+            "redige_par": meta.get("redige_par", "?"),
+        })
+    return versions
 
 
 def proposer_code_reference(categorie, brief: dict) -> str:
@@ -98,6 +155,10 @@ def enregistrer_reference(
     if ref_dir.exists() and not overwrite:
         raise FileExistsError(f"La référence {code} existe déjà dans {cat.code}. Cocher 'Écraser' pour la remplacer.")
 
+    # Archiver l'ancienne version avant écrasement
+    if ref_dir.exists() and overwrite:
+        archiver_version(ref_dir)
+
     ref_dir.mkdir(parents=True, exist_ok=True)
     data_dir = ref_dir / "data"
     data_dir.mkdir(exist_ok=True)
@@ -145,6 +206,7 @@ def enregistrer_reference(
             "AMDEC_produit": "data/amdec_produit.json",
             "AMDEC_process": "data/amdec_process.json",
             "gamme": "data/gamme.json",
+            "plan_controle": "data/plan_controle.json",
         },
         "infor_reference": None,
         "date_creation": date.today().isoformat(),
@@ -171,11 +233,16 @@ def enregistrer_reference(
     gamme["reference"] = code
     gamme["designation"] = designation
 
+    plan_controle = dict(dossier.get("plan_controle", {}))
+    plan_controle["reference"] = code
+    plan_controle["designation"] = designation
+
     # Initialise le workflow AVANT de sauver — la nouvelle ref démarre en brouillon
     data_workflow = {
         "amdec_produit": amdec_produit,
         "amdec_process": amdec_process,
         "gamme": gamme,
+        "plan_controle": plan_controle,
     }
     initialiser_workflow(
         metadata, data_workflow,
@@ -187,6 +254,7 @@ def enregistrer_reference(
     (data_dir / "amdec_produit.json").write_text(json.dumps(amdec_produit, ensure_ascii=False, indent=2), encoding="utf-8")
     (data_dir / "amdec_process.json").write_text(json.dumps(amdec_process, ensure_ascii=False, indent=2), encoding="utf-8")
     (data_dir / "gamme.json").write_text(json.dumps(gamme, ensure_ascii=False, indent=2), encoding="utf-8")
+    (data_dir / "plan_controle.json").write_text(json.dumps(plan_controle, ensure_ascii=False, indent=2), encoding="utf-8")
 
     return ref_dir
 

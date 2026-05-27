@@ -1,8 +1,11 @@
 """
 Gestion des utilisateurs, rôles et authentification.
 
-Stockage : config/users.json (auto-créé avec utilisateurs par défaut).
-Hachage  : PBKDF2-SHA256 (stdlib uniquement, aucune dépendance externe).
+Stockage prioritaire : Supabase (table `users`) si SUPABASE_URL + SUPABASE_KEY sont définis.
+Fallback                : config/users.json (comportement original, aucun changement).
+
+Le basculement est automatique — aucune intervention nécessaire.
+Hachage : PBKDF2-SHA256 (stdlib uniquement, aucune dépendance externe).
 """
 
 import hashlib
@@ -44,6 +47,13 @@ ROLES = {
         "peut_corrections": False,
         "peut_liberer": True,
     },
+    "redacteur": {
+        "label": "Chef de Projet",
+        "gates": [],
+        "peut_soumettre": True,
+        "peut_corrections": False,
+        "peut_liberer": False,
+    },
     "viewer": {
         "label": "Lecteur",
         "gates": [],
@@ -59,6 +69,7 @@ _UTILISATEURS_DEFAUT = [
     ("bt",        "Bureau Technique",  "bt",        "BT123!"),
     ("qualite",   "Resp. Qualité",     "qualite",   "Qualite123!"),
     ("direction", "Direction",         "direction", "Direction123!"),
+    ("redacteur", "Chef de Projet",    "redacteur", "ChefProjet123!"),
 ]
 
 
@@ -68,20 +79,20 @@ def _hasher(password: str, salt: str) -> str:
     return hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 260_000).hex()
 
 
-# ─── Persistence ──────────────────────────────────────────────────────────────
+# ─── Persistence locale (fallback JSON) ──────────────────────────────────────
 
-def _charger() -> dict:
+def _charger_local() -> dict:
     if not USERS_FILE.exists():
-        _initialiser_defaut()
+        _initialiser_defaut_local()
     return json.loads(USERS_FILE.read_text(encoding="utf-8"))
 
 
-def _sauvegarder(data: dict) -> None:
+def _sauvegarder_local(data: dict) -> None:
     CONFIG_DIR.mkdir(exist_ok=True)
     USERS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _initialiser_defaut() -> None:
+def _initialiser_defaut_local() -> None:
     data = {"users": {}}
     for username, nom, role, password in _UTILISATEURS_DEFAUT:
         salt = secrets.token_hex(16)
@@ -91,10 +102,99 @@ def _initialiser_defaut() -> None:
             "salt": salt,
             "password_hash": _hasher(password, salt),
         }
-    _sauvegarder(data)
+    _sauvegarder_local(data)
 
 
-# ─── API publique ─────────────────────────────────────────────────────────────
+# ─── Persistence Supabase ─────────────────────────────────────────────────────
+
+def _sb_initialiser_defaut(sb) -> None:
+    """Insère les comptes par défaut dans Supabase s'ils n'existent pas."""
+    for username, nom, role, password in _UTILISATEURS_DEFAUT:
+        existing = sb.table("users").select("username").eq("username", username).execute()
+        if not existing.data:
+            salt = secrets.token_hex(16)
+            sb.table("users").insert({
+                "username": username,
+                "nom": nom,
+                "role": role,
+                "salt": salt,
+                "password_hash": _hasher(password, salt),
+            }).execute()
+
+
+def _sb_charger_tous(sb) -> dict:
+    """Charge tous les utilisateurs depuis Supabase."""
+    res = sb.table("users").select("*").execute()
+    users = {}
+    for row in (res.data or []):
+        users[row["username"]] = {
+            "nom": row["nom"],
+            "role": row["role"],
+            "salt": row["salt"],
+            "password_hash": row["password_hash"],
+        }
+    # Initialisation au premier démarrage si vide
+    if not users:
+        _sb_initialiser_defaut(sb)
+        res = sb.table("users").select("*").execute()
+        for row in (res.data or []):
+            users[row["username"]] = {
+                "nom": row["nom"],
+                "role": row["role"],
+                "salt": row["salt"],
+                "password_hash": row["password_hash"],
+            }
+    return {"users": users}
+
+
+# ─── Routage automatique (Supabase si dispo, JSON sinon) ─────────────────────
+
+def _charger() -> dict:
+    try:
+        from backend.supabase_client import get_supabase
+        sb = get_supabase()
+        if sb:
+            return _sb_charger_tous(sb)
+    except Exception:
+        pass
+    return _charger_local()
+
+
+def _sauvegarder(data: dict) -> None:
+    """Persiste dans Supabase OU dans le JSON local selon la config."""
+    try:
+        from backend.supabase_client import get_supabase
+        sb = get_supabase()
+        if sb:
+            # Supabase : upsert de chaque utilisateur (insert ou update)
+            for username, info in data.get("users", {}).items():
+                sb.table("users").upsert({
+                    "username": username,
+                    "nom": info["nom"],
+                    "role": info["role"],
+                    "salt": info["salt"],
+                    "password_hash": info["password_hash"],
+                }).execute()
+            return
+    except Exception:
+        pass
+    _sauvegarder_local(data)
+
+
+def _supprimer_supabase(username: str) -> bool:
+    """Supprime un utilisateur dans Supabase. Retourne True si réussi."""
+    try:
+        from backend.supabase_client import get_supabase
+        sb = get_supabase()
+        if sb:
+            sb.table("users").delete().eq("username", username).execute()
+            return True
+    except Exception:
+        pass
+    return False
+
+
+# ─── API publique (inchangée) ─────────────────────────────────────────────────
 
 def verifier_credentials(username: str, password: str) -> dict | None:
     """Retourne le profil utilisateur si les credentials sont valides, None sinon."""
@@ -145,8 +245,11 @@ def supprimer_utilisateur(username: str) -> None:
     data = _charger()
     if username not in data["users"]:
         raise ValueError(f"Utilisateur introuvable : '{username}'")
-    del data["users"][username]
-    _sauvegarder(data)
+    # Supabase : suppression directe
+    if not _supprimer_supabase(username):
+        # Fallback JSON
+        del data["users"][username]
+        _sauvegarder_local(data)
 
 
 # ─── Helpers de droits ────────────────────────────────────────────────────────

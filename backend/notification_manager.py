@@ -1,13 +1,11 @@
 """
 Gestion des notifications in-app pour les transitions de workflow.
 
-Le fichier config/notifications.json stocke une liste de notifications :
-  {ref, categorie, statut, acteur, date, message, roles_destinataires, lue_par}
+Stockage prioritaire : Supabase (table `notifications`) si configuré.
+Fallback                : config/notifications.json (comportement original).
 
-Fonctions publiques :
-  ajouter_notification(ref, categorie, statut, acteur, message, roles_destinataires)
-  lire_notifications(role) → liste des notifications non lues pour ce rôle
-  marquer_lues(role)       → vide les notifications du rôle
+Structure d'une notification :
+  {ref, categorie, statut, acteur, date, message, roles_destinataires, lue_par}
 """
 
 import json
@@ -30,6 +28,8 @@ ROLES_PAR_STATUT = {
 }
 
 
+# ─── Persistence locale (fallback JSON) ──────────────────────────────────────
+
 def _lire_fichier() -> list[dict]:
     if not NOTIF_FILE.exists():
         return []
@@ -46,6 +46,43 @@ def _ecrire_fichier(notifs: list[dict]) -> None:
         json.dump(notifs, f, ensure_ascii=False, indent=2)
 
 
+# ─── Persistence Supabase ─────────────────────────────────────────────────────
+
+def _sb_ajouter(sb, notif: dict) -> None:
+    sb.table("notifications").insert({
+        "ref":                  notif["ref"],
+        "categorie":            notif["categorie"],
+        "statut":               notif["statut"],
+        "acteur":               notif["acteur"],
+        "date":                 notif["date"],
+        "message":              notif["message"],
+        "roles_destinataires":  notif["roles_destinataires"],
+        "lue_par":              notif["lue_par"],
+    }).execute()
+
+
+def _sb_lire_non_lues(sb, role: str) -> list[dict]:
+    """Retourne les notifications non lues pour un rôle, de la plus récente à la plus ancienne."""
+    res = sb.table("notifications").select("*").order("date", desc=True).execute()
+    return [
+        n for n in (res.data or [])
+        if role in (n.get("roles_destinataires") or [])
+        and role not in (n.get("lue_par") or [])
+    ]
+
+
+def _sb_marquer_lues(sb, role: str) -> None:
+    """Marque toutes les notifications non lues du rôle comme lues."""
+    res = sb.table("notifications").select("id, lue_par").execute()
+    for row in (res.data or []):
+        lue_par = row.get("lue_par") or []
+        if role not in lue_par:
+            lue_par.append(role)
+            sb.table("notifications").update({"lue_par": lue_par}).eq("id", row["id"]).execute()
+
+
+# ─── API publique ─────────────────────────────────────────────────────────────
+
 def ajouter_notification(
     ref: str,
     categorie: str,
@@ -61,19 +98,31 @@ def ajouter_notification(
     if roles_destinataires is None:
         roles_destinataires = ROLES_PAR_STATUT.get(statut, ["admin"])
 
-    notifs = _lire_fichier()
-    notifs.append({
-        "ref": ref,
-        "categorie": categorie,
-        "statut": statut,
-        "acteur": acteur,
-        "date": datetime.now().isoformat(timespec="seconds"),
-        "message": message,
+    notif = {
+        "ref":                 ref,
+        "categorie":           categorie,
+        "statut":              statut,
+        "acteur":              acteur,
+        "date":                datetime.now().isoformat(timespec="seconds"),
+        "message":             message,
         "roles_destinataires": roles_destinataires,
-        "lue_par": [],
-    })
+        "lue_par":             [],
+    }
+
+    try:
+        from backend.supabase_client import get_supabase
+        sb = get_supabase()
+        if sb:
+            _sb_ajouter(sb, notif)
+            logger.info("Notification Supabase ajoutée pour %s — statut %s", ref, statut)
+            return
+    except Exception as e:
+        logger.warning("Supabase notification échouée (%s), fallback JSON.", e)
+
+    notifs = _lire_fichier()
+    notifs.append(notif)
     _ecrire_fichier(notifs)
-    logger.info("Notification ajoutée pour %s — statut %s", ref, statut)
+    logger.info("Notification JSON ajoutée pour %s — statut %s", ref, statut)
 
 
 def lire_notifications(role: str) -> list[dict]:
@@ -81,6 +130,14 @@ def lire_notifications(role: str) -> list[dict]:
     Retourne les notifications non lues pour un rôle donné,
     de la plus récente à la plus ancienne.
     """
+    try:
+        from backend.supabase_client import get_supabase
+        sb = get_supabase()
+        if sb:
+            return _sb_lire_non_lues(sb, role)
+    except Exception:
+        pass
+
     notifs = _lire_fichier()
     non_lues = [
         n for n in notifs
@@ -92,6 +149,15 @@ def lire_notifications(role: str) -> list[dict]:
 
 def marquer_lues(role: str) -> None:
     """Marque toutes les notifications destinées à ce rôle comme lues."""
+    try:
+        from backend.supabase_client import get_supabase
+        sb = get_supabase()
+        if sb:
+            _sb_marquer_lues(sb, role)
+            return
+    except Exception:
+        pass
+
     notifs = _lire_fichier()
     modifie = False
     for n in notifs:

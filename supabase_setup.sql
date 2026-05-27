@@ -1,0 +1,34 @@
+-- ============================================================
+--  Qual.IA — Setup Supabase (à coller dans SQL Editor)
+--  Une seule fois, avant le premier déploiement.
+-- ============================================================
+
+-- Table des utilisateurs
+CREATE TABLE IF NOT EXISTS users (
+    username      TEXT PRIMARY KEY,
+    nom           TEXT NOT NULL,
+    role          TEXT NOT NULL,
+    salt          TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Table des notifications workflow
+CREATE TABLE IF NOT EXISTS notifications (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    ref                  TEXT NOT NULL,
+    categorie            TEXT NOT NULL,
+    statut               TEXT NOT NULL,
+    acteur               TEXT NOT NULL,
+    date                 TIMESTAMPTZ NOT NULL,
+    message              TEXT NOT NULL,
+    roles_destinataires  JSONB NOT NULL DEFAULT '[]',
+    lue_par              JSONB NOT NULL DEFAULT '[]'
+);
+
+-- Désactiver RLS (accès serveur direct via clé API)
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
+
+-- Index pour accélérer les requêtes de notifications par date
+CREATE INDEX IF NOT EXISTS idx_notifications_date ON notifications (date DESC);

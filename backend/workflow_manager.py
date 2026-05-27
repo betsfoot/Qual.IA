@@ -155,6 +155,17 @@ def faire_transition(
     if action == "liberer" and statut_actuel != "approuve":
         raise ValueError("Impossible de libérer depuis cet état.")
 
+    # Garde-fou : bloquer la libération si des champs sont encore non définis
+    if action == "liberer" and data:
+        champs_manquants = verifier_champs_definis(data)
+        if champs_manquants:
+            details = "\n  • ".join(champs_manquants[:10])
+            suffix = f"\n  … et {len(champs_manquants) - 10} autre(s)" if len(champs_manquants) > 10 else ""
+            raise ValueError(
+                f"Ce dossier contient {len(champs_manquants)} champ(s) non définis.\n"
+                f"Complétez-les avant de libérer :\n  • {details}{suffix}"
+            )
+
     # ── Appliquer la transition ──
     if action in ("soumettre", "resoumettre"):
         nouveau_statut = "en_revue"
@@ -263,6 +274,38 @@ def label_statut(statut: str) -> str:
 
 def label_action(action: str) -> str:
     return ACTIONS_LABELS.get(action, action)
+
+
+# ─── Garde-fou libération ─────────────────────────────────────────────────────
+
+PLACEHOLDER_NON_DEFINI = "[À DÉFINIR EN ATELIER]"
+
+
+def verifier_champs_definis(data: dict) -> list[str]:
+    """
+    Parcourt récursivement le dossier et retourne la liste des chemins de champs
+    contenant encore le placeholder '[À DÉFINIR EN ATELIER]'.
+
+    Retourne une liste vide si le dossier est complet.
+    Exemple de retour : ["amdec_produit.modes_defaillance[2].G", "gamme.operations[0].duree_min"]
+    """
+    occurrences = []
+    _chercher_placeholders(data, "", occurrences)
+    return occurrences
+
+
+def _chercher_placeholders(obj, chemin: str, acc: list) -> None:
+    """Parcours récursif d'un objet JSON pour trouver les placeholders."""
+    if isinstance(obj, str):
+        if PLACEHOLDER_NON_DEFINI in obj:
+            acc.append(chemin or "racine")
+    elif isinstance(obj, dict):
+        for cle, valeur in obj.items():
+            sous_chemin = f"{chemin}.{cle}" if chemin else cle
+            _chercher_placeholders(valeur, sous_chemin, acc)
+    elif isinstance(obj, list):
+        for i, item in enumerate(obj):
+            _chercher_placeholders(item, f"{chemin}[{i}]", acc)
 
 
 # ─── Mapping gate → rôle requis ──────────────────────────────────────────────

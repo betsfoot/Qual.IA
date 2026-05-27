@@ -157,7 +157,7 @@ with st.sidebar:
     if _nb_notifs > 0:
         st.markdown(f"🔔 **{_nb_notifs} notification(s) non lue(s)**")
 
-    pages_disponibles = ["🏭 Nouveau produit", "📥 Importer un Excel", "📋 Workflow", "🔔 Notifications", "📚 Gestion de la base", "🔧 Retouches"]
+    pages_disponibles = ["📊 Tableau de bord", "🏭 Nouveau produit", "📥 Importer un Excel", "📋 Workflow", "🔔 Notifications", "📚 Gestion de la base", "🔧 Retouches"]
     if user["role"] == "admin":
         pages_disponibles.append("🎨 Typologies")
         pages_disponibles.append("👥 Utilisateurs")
@@ -184,6 +184,170 @@ with st.sidebar:
 # ═════════════════════════════════════════════════════════════════════════════
 # PAGE 2 : GESTION DE LA BASE — rendue en premier puis st.stop() si sélectionnée
 # ═════════════════════════════════════════════════════════════════════════════
+
+if page == "📊 Tableau de bord":
+    import pandas as pd
+    from datetime import datetime
+
+    from backend.retouche_manager import lister_articles_avec_retouches, stats_retouches
+
+    st.title("📊 Tableau de bord qualité")
+    st.caption(f"Vue synthétique — {categorie_active.icone} {categorie_active.nom}")
+
+    toutes_refs = lister_references(categorie_active)
+
+    if not toutes_refs:
+        st.info("Aucune référence dans cette catégorie.")
+        st.stop()
+
+    def _statut_ref(r: dict) -> str:
+        return r.get("workflow", {}).get("statut", r.get("statut", "brouillon"))
+
+    def _derniere_date(r: dict) -> str:
+        hist = r.get("workflow", {}).get("historique", [])
+        return hist[-1].get("date", "") if hist else ""
+
+    def _ipr_int(r: dict) -> int:
+        try:
+            return int(r.get("workflow", {}).get("ipr_max", 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    # ── Calculs globaux ──────────────────────────────────────────────────────────
+    par_statut: dict[str, int] = {}
+    for r in toutes_refs:
+        s = _statut_ref(r)
+        par_statut[s] = par_statut.get(s, 0) + 1
+
+    SEUIL_BLOQUE = 7
+    maintenant = datetime.now()
+    bloques = []
+    for r in toutes_refs:
+        if _statut_ref(r) == "en_revue":
+            d = _derniere_date(r)
+            if d:
+                try:
+                    delta = (maintenant - datetime.fromisoformat(d[:19])).days
+                    if delta >= SEUIL_BLOQUE:
+                        bloques.append({
+                            "ref": r["reference"],
+                            "designation": r.get("designation", "")[:45],
+                            "jours": delta,
+                            "ipr_max": r.get("workflow", {}).get("ipr_max", "—"),
+                        })
+                except Exception:
+                    pass
+    bloques.sort(key=lambda x: -x["jours"])
+
+    ipr_rouge  = sum(1 for r in toutes_refs if _ipr_int(r) > 100)
+    ipr_orange = sum(1 for r in toutes_refs if 40 < _ipr_int(r) <= 100)
+    ipr_vert   = sum(1 for r in toutes_refs if _ipr_int(r) <= 40)
+
+    # ── KPI ──────────────────────────────────────────────────────────────────────
+    st.subheader("Vue globale")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("📋 Total", len(toutes_refs))
+    k2.metric("📝 Brouillons", par_statut.get("brouillon", 0) + par_statut.get("corrections", 0))
+    k3.metric("👁️ En revue", par_statut.get("en_revue", 0))
+    k4.metric("🚀 Libérés", par_statut.get("libere", 0))
+    k5.metric(
+        f"🚨 Bloqués > {SEUIL_BLOQUE}j",
+        len(bloques),
+        delta=f"{bloques[0]['jours']}j max" if bloques else None,
+        delta_color="inverse",
+    )
+
+    st.divider()
+
+    # ── IPR + Bloqués ─────────────────────────────────────────────────────────────
+    col_ipr, col_bloque = st.columns(2)
+
+    with col_ipr:
+        st.subheader("🎯 Distribution des risques")
+        ci1, ci2, ci3 = st.columns(3)
+        ci1.metric("🔴 Critique", ipr_rouge, help="IPR > 100")
+        ci2.metric("🟠 Élevé", ipr_orange, help="IPR 41–100")
+        ci3.metric("🟢 Acceptable", ipr_vert, help="IPR ≤ 40")
+        df_ipr = pd.DataFrame({
+            "Zone": ["🔴 Critique", "🟠 Élevé", "🟢 Acceptable"],
+            "Dossiers": [ipr_rouge, ipr_orange, ipr_vert],
+        }).set_index("Zone")
+        st.bar_chart(df_ipr)
+
+    with col_bloque:
+        st.subheader(f"🚨 En revue > {SEUIL_BLOQUE} jours")
+        if not bloques:
+            st.success("Aucun dossier bloqué.")
+        else:
+            for b in bloques[:6]:
+                with st.container(border=True):
+                    bc1, bc2 = st.columns([4, 1])
+                    bc1.markdown(f"**`{b['ref']}`**  {b['designation']}")
+                    bc1.caption(f"IPR max : {b['ipr_max']}")
+                    bc2.metric("Jours", b["jours"])
+
+    st.divider()
+
+    # ── Top modes de défaillance ──────────────────────────────────────────────────
+    st.subheader("🔍 Top 10 modes de défaillance (IPR les plus élevés)")
+
+    top_modes = []
+    for r in toutes_refs:
+        try:
+            ref_data = charger_reference_complete(categorie_active, r["reference"])
+            for doc_key, doc_label in [("amdec_produit", "Produit"), ("amdec_process", "Process")]:
+                for m in ref_data["data"].get(doc_key, {}).get("modes_defaillance", []):
+                    try:
+                        ipr = int(m.get("G") or 0) * int(m.get("O") or 0) * int(m.get("D") or 0)
+                        if ipr > 0:
+                            top_modes.append({
+                                "Référence": r["reference"],
+                                "Document": doc_label,
+                                "Mode de défaillance": (m.get("mode_defaillance") or "")[:55],
+                                "G": m.get("G", ""),
+                                "O": m.get("O", ""),
+                                "D": m.get("D", ""),
+                                "IPR": ipr,
+                            })
+                    except (TypeError, ValueError):
+                        pass
+        except Exception:
+            pass
+
+    top_modes.sort(key=lambda x: -x["IPR"])
+    if top_modes:
+        df_top = pd.DataFrame(top_modes[:10])
+        st.dataframe(
+            df_top, use_container_width=True, hide_index=True,
+            column_config={"IPR": st.column_config.NumberColumn("IPR", format="%d")},
+        )
+    else:
+        st.info("Pas encore de données AMDEC disponibles.")
+
+    # ── Retouches globales ────────────────────────────────────────────────────────
+    articles_retouches = lister_articles_avec_retouches()
+    refs_avec_retouches = [r for r in toutes_refs if r["reference"] in articles_retouches]
+
+    if refs_avec_retouches:
+        st.divider()
+        st.subheader("🔧 Conformité après retouche")
+        retouche_rows = []
+        for r in refs_avec_retouches:
+            s = stats_retouches(r["reference"])
+            if s["total"] > 0:
+                retouche_rows.append({
+                    "Référence": r["reference"],
+                    "Total": s["total"],
+                    "Conformes": s["conformes"],
+                    "Non conformes": s["non_conformes"],
+                    "Rebuts": s["rebuts"],
+                    "Taux": f"{s['taux_conformite']:.0%}",
+                })
+        if retouche_rows:
+            st.dataframe(pd.DataFrame(retouche_rows), use_container_width=True, hide_index=True)
+
+    st.stop()
+
 
 if page == "📥 Importer un Excel":
     import pandas as pd
@@ -1194,8 +1358,8 @@ if page == "📚 Gestion de la base":
     meta = ref_complete["metadata"]
     data = ref_complete["data"]
 
-    tab_meta, tab_p, tab_pr, tab_g, tab_dit, tab_zone = st.tabs([
-        "📋 Métadonnées", "AMDEC Produit", "AMDEC Process", "Gamme", "📄 DIT", "⚙️ Actions"
+    tab_meta, tab_p, tab_pr, tab_g, tab_pc_ref, tab_dit, tab_zone = st.tabs([
+        "📋 Métadonnées", "AMDEC Produit", "AMDEC Process", "Gamme", "📋 Plan de Contrôle", "📄 DIT", "⚙️ Actions"
     ])
 
     # Vérification verrou : une référence libérée/approuvée est en lecture seule
@@ -1452,6 +1616,74 @@ if page == "📚 Gestion de la base":
             data["gamme"]["operations"] = edited_g.fillna("").to_dict("records")
             sauvegarder_modifications(categorie_active, code_selectionne, meta, data)
             st.success(f"✅ Gamme de `{code_selectionne}` enregistrée ({len(edited_g)} opérations).")
+
+    # ─── Onglet Plan de Contrôle ─────────────────────────────────────────────
+    with tab_pc_ref:
+        import pandas as pd
+        st.markdown("### 📋 Plan de Contrôle")
+        plan_ref = data.get("plan_controle", {})
+        pts_ref = plan_ref.get("points_controle", [])
+
+        if not pts_ref:
+            st.info(
+                "Aucun Plan de Contrôle pour cette référence. "
+                "Les références créées avant cette mise à jour n'en ont pas encore. "
+                "Régénère le dossier pour obtenir le Plan de Contrôle automatiquement."
+            )
+        else:
+            st.caption(
+                f"Version {plan_ref.get('version', 'A')} — {len(pts_ref)} point(s) de contrôle"
+            )
+            for a in plan_ref.get("avertissements_generateur", []):
+                st.warning(a)
+
+            df_pc_ref = pd.DataFrame(pts_ref)
+            colonnes_pc_ref = [
+                "id", "phase", "operation_gamme", "caracteristique",
+                "critere_acceptation", "moyen_controle", "frequence",
+                "responsable", "enregistrement", "action_non_conformite",
+            ]
+            for c in colonnes_pc_ref:
+                if c not in df_pc_ref.columns:
+                    df_pc_ref[c] = ""
+            df_pc_ref = df_pc_ref[colonnes_pc_ref]
+
+            edited_pc_ref = st.data_editor(
+                df_pc_ref,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="editor_pc_ref",
+                disabled=_est_verrouille,
+                column_config={
+                    "id": st.column_config.TextColumn("ID", width="small"),
+                    "phase": st.column_config.SelectboxColumn(
+                        "Phase", options=["reception", "en_cours", "final"], width="small"
+                    ),
+                    "operation_gamme": st.column_config.TextColumn("Opération", width="small"),
+                    "caracteristique": st.column_config.TextColumn("Caractéristique"),
+                    "critere_acceptation": st.column_config.TextColumn("Critère d'acceptation"),
+                    "moyen_controle": st.column_config.TextColumn("Moyen de contrôle"),
+                    "frequence": st.column_config.TextColumn("Fréquence", width="small"),
+                    "responsable": st.column_config.SelectboxColumn(
+                        "Responsable",
+                        options=["operateur", "controleur", "qualite"],
+                        width="small",
+                    ),
+                    "enregistrement": st.column_config.TextColumn("Enregistrement"),
+                    "action_non_conformite": st.column_config.TextColumn("Action NC"),
+                },
+            )
+
+            if not _est_verrouille:
+                if st.button("💾 Enregistrer le Plan de Contrôle", key="save_pc_ref"):
+                    data.setdefault("plan_controle", {})["points_controle"] = edited_pc_ref.fillna("").to_dict("records")
+                    sauvegarder_modifications(categorie_active, code_selectionne, meta, data)
+                    st.success(f"✅ Plan de Contrôle de `{code_selectionne}` enregistré ({len(edited_pc_ref)} points).")
+
+            col_pc_r1, col_pc_r2, col_pc_r3 = st.columns(3)
+            col_pc_r1.metric("📦 Réception", sum(1 for p in pts_ref if p.get("phase") == "reception"))
+            col_pc_r2.metric("⚙️ En-cours", sum(1 for p in pts_ref if p.get("phase") == "en_cours"))
+            col_pc_r3.metric("✅ Final", sum(1 for p in pts_ref if p.get("phase") == "final"))
 
     # ─── Onglet DIT ─────────────────────────────────────────────────────────
     with tab_dit:
@@ -2563,7 +2795,7 @@ if st.session_state.dossier_genere is not None:
 
     import pandas as pd
 
-    tab1, tab2, tab3 = st.tabs(["AMDEC Produit", "AMDEC Process", "Gamme de Production"])
+    tab1, tab2, tab3, tab4 = st.tabs(["AMDEC Produit", "AMDEC Process", "Gamme de Production", "📋 Plan de Contrôle"])
 
     # ─── AMDEC Produit ───────────────────────────────────────────────────────
     with tab1:
@@ -2709,6 +2941,71 @@ if st.session_state.dossier_genere is not None:
         if not edited_g.empty and "temps_min" in edited_g:
             temps_total = pd.to_numeric(edited_g["temps_min"], errors="coerce").fillna(0).sum()
             st.metric("⏱️ Temps total gamme", f"{int(temps_total)} min")
+
+    # ─── Plan de Contrôle ────────────────────────────────────────────────────
+    with tab4:
+        plan = dossier.get("plan_controle", {})
+        points = plan.get("points_controle", [])
+
+        if not points:
+            st.info("Aucun point de contrôle généré. Relance la génération du dossier pour obtenir le Plan de Contrôle.")
+        else:
+            st.caption(
+                f"Référence : {plan.get('reference', '')} | {plan.get('designation', '')} | "
+                f"Version {plan.get('version', 'A')} — {len(points)} point(s) de contrôle"
+            )
+
+            # Avertissements
+            for a in plan.get("avertissements_generateur", []):
+                st.warning(a)
+
+            df_pc = pd.DataFrame(points)
+            colonnes_pc = [
+                "id", "phase", "operation_gamme", "caracteristique",
+                "critere_acceptation", "moyen_controle", "frequence",
+                "responsable", "enregistrement", "action_non_conformite",
+            ]
+            for c in colonnes_pc:
+                if c not in df_pc.columns:
+                    df_pc[c] = ""
+            df_pc = df_pc[colonnes_pc]
+
+            edited_pc = st.data_editor(
+                df_pc,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="editor_plan_controle",
+                column_config={
+                    "id": st.column_config.TextColumn("ID", width="small"),
+                    "phase": st.column_config.SelectboxColumn(
+                        "Phase",
+                        options=["reception", "en_cours", "final"],
+                        width="small",
+                    ),
+                    "operation_gamme": st.column_config.TextColumn("Opération", width="small"),
+                    "caracteristique": st.column_config.TextColumn("Caractéristique"),
+                    "critere_acceptation": st.column_config.TextColumn("Critère d'acceptation"),
+                    "moyen_controle": st.column_config.TextColumn("Moyen de contrôle"),
+                    "frequence": st.column_config.TextColumn("Fréquence", width="small"),
+                    "responsable": st.column_config.SelectboxColumn(
+                        "Responsable",
+                        options=["operateur", "controleur", "qualite"],
+                        width="small",
+                    ),
+                    "enregistrement": st.column_config.TextColumn("Enregistrement"),
+                    "action_non_conformite": st.column_config.TextColumn("Action NC"),
+                },
+            )
+            st.session_state.dossier_genere["plan_controle"]["points_controle"] = edited_pc.fillna("").to_dict("records")
+
+            # Récapitulatif par phase
+            col_pc1, col_pc2, col_pc3 = st.columns(3)
+            nb_rec = sum(1 for p in points if p.get("phase") == "reception")
+            nb_enc = sum(1 for p in points if p.get("phase") == "en_cours")
+            nb_fin = sum(1 for p in points if p.get("phase") == "final")
+            col_pc1.metric("📦 Réception", nb_rec)
+            col_pc2.metric("⚙️ En-cours", nb_enc)
+            col_pc3.metric("✅ Final", nb_fin)
 
     # ─── Sauvegarde brouillon ─────────────────────────────────────────────────
 

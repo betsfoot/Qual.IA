@@ -94,3 +94,5 @@ push_log.txt
 PUSH_GITHUB.bat
 PUBLIER_SUR_GITHUB.bat
 push.vbs
+push_auto.bat
+push_auto_log.txt

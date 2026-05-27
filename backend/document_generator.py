@@ -461,6 +461,124 @@ def generer_gamme(brief, metadata, source_data, client, system_prompt=None, cate
     return _parse_json_response(_appeler_claude(prompt, client, system_prompt))
 
 
+# ─── Plan de Contrôle ────────────────────────────────────────────────────────
+
+SEUIL_IPR_PLAN_CONTROLE = int(os.getenv("SEUIL_IPR_PLAN_CONTROLE", "20"))
+
+
+def _construire_prompt_plan_controle(
+    brief: dict,
+    amdec_produit: dict,
+    amdec_process: dict,
+    gamme: dict,
+    metadata: dict,
+) -> str:
+    """Construit le prompt pour générer le Plan de Contrôle à partir des 3 documents."""
+    designation = metadata.get("designation", "")
+    reference = metadata.get("reference", "")
+
+    # Extraire les modes de défaillance avec IPR >= seuil
+    modes_critiques = []
+    for m in amdec_produit.get("modes_defaillance", []):
+        try:
+            ipr = int(m.get("G", 0) or 0) * int(m.get("O", 0) or 0) * int(m.get("D", 0) or 0)
+        except (TypeError, ValueError):
+            ipr = 0
+        if ipr >= SEUIL_IPR_PLAN_CONTROLE or str(m.get("G", "")).startswith("["):
+            modes_critiques.append({**m, "ipr": ipr, "source": "produit"})
+
+    for m in amdec_process.get("modes_defaillance", []):
+        try:
+            ipr = int(m.get("G", 0) or 0) * int(m.get("O", 0) or 0) * int(m.get("D", 0) or 0)
+        except (TypeError, ValueError):
+            ipr = 0
+        if ipr >= SEUIL_IPR_PLAN_CONTROLE or str(m.get("G", "")).startswith("["):
+            modes_critiques.append({**m, "ipr": ipr, "source": "process"})
+
+    # Extraire les opérations de la gamme
+    operations_gamme = [
+        {"code": op.get("code", ""), "nom": op.get("nom", "")}
+        for op in gamme.get("operations", [])
+    ]
+
+    return f"""Tu es un expert qualité industrielle spécialisé en optique et horlogerie. \
+Génère un Plan de Contrôle complet pour le produit suivant.
+
+Référence : {reference}
+Désignation : {designation}
+
+MODES DE DÉFAILLANCE CRITIQUES (IPR ≥ {SEUIL_IPR_PLAN_CONTROLE}, AMDEC Produit + Process) :
+<donnees_client>
+{json.dumps(modes_critiques, ensure_ascii=False, indent=2)}
+</donnees_client>
+
+OPÉRATIONS DE LA GAMME :
+<donnees_client>
+{json.dumps(operations_gamme, ensure_ascii=False, indent=2)}
+</donnees_client>
+
+DONNÉES PRODUIT :
+<donnees_client>
+{json.dumps(brief, ensure_ascii=False, indent=2)}
+</donnees_client>
+
+Génère un Plan de Contrôle JSON. Pour chaque point de contrôle :
+- Lie-le à une opération de la gamme (code opération) et au mode de défaillance source
+- Définis un critère d'acceptation concret et mesurable adapté au produit
+- Choisis un moyen de contrôle adapté à l'optique/horlogerie (binoculaire, jauge, spectrophotomètre, rugosimètre, calibre, etc.)
+- Définis une fréquence réaliste (100%, 1/10, 1/lot, début de série…)
+- Précise qui contrôle (opérateur, contrôleur qualité, responsable qualité)
+- Indique l'action à mener en cas de non-conformité
+
+RÈGLES ABSOLUES :
+- N'invente aucune valeur non déductible du produit — écris '[À PRÉCISER]' si nécessaire
+- Les critères doivent être directement utilisables par un opérateur en production
+- Adapte les moyens au secteur optique/horlogerie (saphir, couches minces)
+- Inclure au minimum : réception matière, contrôles en-cours sur chaque traitement, contrôle final
+
+FORMAT JSON ATTENDU (réponds UNIQUEMENT avec ce JSON) :
+{{
+  "reference": "{reference}",
+  "designation": "{designation}",
+  "version": "A",
+  "date_creation": "",
+  "points_controle": [
+    {{
+      "id": "PC-001",
+      "operation_gamme": "code opération",
+      "phase": "reception | en_cours | final",
+      "caracteristique": "caractéristique contrôlée",
+      "mode_defaillance_source": "mode lié (optionnel)",
+      "critere_acceptation": "valeur ou plage acceptable",
+      "moyen_controle": "outil ou méthode",
+      "frequence": "fréquence",
+      "responsable": "opérateur | controleur | qualite",
+      "enregistrement": "document ou fiche",
+      "action_non_conformite": "action si hors tolérance"
+    }}
+  ],
+  "confiance_globale": 0.0,
+  "avertissements_generateur": []
+}}"""
+
+
+def generer_plan_controle(
+    brief: dict,
+    amdec_produit: dict,
+    amdec_process: dict,
+    gamme: dict,
+    metadata: dict,
+    client,
+    system_prompt: str = None,
+) -> dict:
+    """
+    Génère le Plan de Contrôle à partir des 3 documents qualité existants.
+    Doit être appelé APRÈS la génération des AMDEC et de la Gamme.
+    """
+    prompt = _construire_prompt_plan_controle(brief, amdec_produit, amdec_process, gamme, metadata)
+    return _parse_json_response(_appeler_claude(prompt, client, system_prompt))
+
+
 def _construire_prompt_variantes_amdec_produit(brief_base: dict, variantes: list, source_data: dict, metadata: dict) -> str:
     variantes_desc = "\n".join(
         f"- Article {v['article']} : traitements = {format_traitements_str(v['traitements'])} | désignation = {v.get('designation', '')}"
@@ -681,7 +799,9 @@ def generer_dossier_complet(
     refs_composites: dict | None = None,
 ) -> dict:
     """
-    Point d'entrée principal. Génère les 3 documents pour un brief donné.
+    Point d'entrée principal. Génère les 4 documents pour un brief donné :
+    AMDEC Produit, AMDEC Process, Gamme, Plan de Contrôle.
+
     `categorie` est l'objet Categorie active (utilisé pour le prompt expert).
 
     Si mode_squelette=True, Claude ne génère que la structure sans aucune
@@ -712,6 +832,25 @@ def generer_dossier_complet(
     amdec_process = generer_amdec_process(brief, metadata, source_data, client, system_prompt, supplement=supplement, categorie=categorie, refs_composites=refs_composites)
     gamme = generer_gamme(brief, metadata, source_data, client, system_prompt, categorie=categorie, refs_composites=refs_composites)
 
+    # Plan de Contrôle : généré à partir des 3 documents précédents
+    try:
+        plan_controle = generer_plan_controle(
+            brief, amdec_produit, amdec_process, gamme, metadata,
+            client, system_prompt
+        )
+    except Exception as e:
+        import logging
+        logging.warning("Génération Plan de Contrôle échouée : %s", e)
+        plan_controle = {
+            "reference": metadata.get("reference", ""),
+            "designation": metadata.get("designation", ""),
+            "version": "A",
+            "date_creation": "",
+            "points_controle": [],
+            "confiance_globale": 0.0,
+            "avertissements_generateur": [f"Génération échouée : {e}"],
+        }
+
     sources_supplement = {
         cle: [r["reference"] for r in refs]
         for cle, refs in supplement.items()
@@ -729,6 +868,7 @@ def generer_dossier_complet(
         "amdec_produit": amdec_produit,
         "amdec_process": amdec_process,
         "gamme": gamme,
+        "plan_controle": plan_controle,
         "metadonnees_generation": {
             "reference_source": metadata.get("reference", ""),
             "score_similarite": resultat_similarite.score,
@@ -740,9 +880,11 @@ def generer_dossier_complet(
             "confiance_amdec_produit": amdec_produit.get("confiance_globale", 0),
             "confiance_amdec_process": amdec_process.get("confiance_globale", 0),
             "confiance_gamme": gamme.get("confiance_globale", 0),
+            "confiance_plan_controle": plan_controle.get("confiance_globale", 0),
             "avertissements_similarite": resultat_similarite.avertissements,
             "avertissements_amdec_produit": amdec_produit.get("avertissements_generateur", []),
             "avertissements_amdec_process": amdec_process.get("avertissements_generateur", []),
             "avertissements_gamme": gamme.get("avertissements_generateur", []),
+            "avertissements_plan_controle": plan_controle.get("avertissements_generateur", []),
         },
     }
