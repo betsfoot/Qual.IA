@@ -295,6 +295,20 @@ def enregistrer_reference(
         except Exception:
             pass
 
+    # Notification création (in-app + email)
+    try:
+        from backend.notification_manager import ajouter_notification
+        ajouter_notification(
+            ref=code,
+            categorie=cat.code,
+            statut="creation",
+            acteur=acteur,
+            message=f"Nouveau dossier créé : {designation}",
+            designation=designation,
+        )
+    except Exception:
+        pass
+
     return ref_dir
 
 

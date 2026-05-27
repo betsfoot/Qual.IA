@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 # Rôles notifiés pour chaque statut de transition
 ROLES_PAR_STATUT = {
+    "creation":    ["admin", "qualite"],
     "en_revue":    ["bt", "qualite", "direction", "admin"],
     "corrections": ["redacteur", "admin"],
     "approuve":    ["redacteur", "admin"],
@@ -90,10 +91,19 @@ def ajouter_notification(
     acteur: str,
     message: str,
     roles_destinataires: list[str] | None = None,
+    designation: str = "",
+    commentaire: str = "",
+    gate: str = "",
+    role_requis: str = "",
 ) -> None:
     """
-    Ajoute une notification pour les rôles concernés par la transition de statut.
-    Si roles_destinataires n'est pas fourni, les rôles par défaut du statut sont utilisés.
+    Ajoute une notification in-app et envoie un email aux utilisateurs concernés.
+
+    Paramètres additionnels pour enrichir les emails :
+      designation      : désignation humaine de la référence
+      commentaire      : commentaire libre (affiché dans l'email validation)
+      gate             : gate à valider (pour statut en_revue)
+      role_requis      : rôle requis pour la gate (pour statut en_revue)
     """
     if roles_destinataires is None:
         roles_destinataires = ROLES_PAR_STATUT.get(statut, ["admin"])
@@ -115,14 +125,71 @@ def ajouter_notification(
         if sb:
             _sb_ajouter(sb, notif)
             logger.info("Notification Supabase ajoutée pour %s — statut %s", ref, statut)
-            return
     except Exception as e:
         logger.warning("Supabase notification échouée (%s), fallback JSON.", e)
+        notifs = _lire_fichier()
+        notifs.append(notif)
+        _ecrire_fichier(notifs)
+        logger.info("Notification JSON ajoutée pour %s — statut %s", ref, statut)
+        return
 
-    notifs = _lire_fichier()
-    notifs.append(notif)
-    _ecrire_fichier(notifs)
-    logger.info("Notification JSON ajoutée pour %s — statut %s", ref, statut)
+    # ── Envoi email ────────────────────────────────────────────────────────────
+    try:
+        _envoyer_email_notification(
+            notif,
+            designation=designation,
+            commentaire=commentaire,
+            gate=gate,
+            role_requis=role_requis,
+        )
+    except Exception as e:
+        logger.warning("Envoi email notification echoue (%s)", e)
+
+
+def _envoyer_email_notification(
+    notif: dict,
+    designation: str = "",
+    commentaire: str = "",
+    gate: str = "",
+    role_requis: str = "",
+) -> None:
+    """Sélectionne le bon template email et envoie aux destinataires concernés."""
+    from backend.email_notifier import (
+        email_configure, get_emails_par_roles,
+        notifier_nouveau_dossier, notifier_validation_requise, notifier_transition,
+    )
+
+    if not email_configure():
+        return
+
+    ref       = notif["ref"]
+    categorie = notif["categorie"]
+    statut    = notif["statut"]
+    acteur    = notif["acteur"]
+    message   = notif["message"]
+    roles     = notif.get("roles_destinataires", ["admin"])
+
+    destinataires = get_emails_par_roles(roles)
+    if not destinataires:
+        return
+
+    if statut == "creation":
+        notifier_nouveau_dossier(ref, designation, categorie, acteur, destinataires)
+
+    elif statut == "en_revue":
+        notifier_validation_requise(
+            reference=ref,
+            designation=designation,
+            categorie=categorie,
+            soumis_par=acteur,
+            gate=gate or "Vérification BT",
+            role_requis=role_requis or "bt",
+            destinataires=destinataires,
+            commentaire=commentaire,
+        )
+
+    else:
+        notifier_transition(ref, designation, categorie, statut, acteur, message, destinataires)
 
 
 def lire_notifications(role: str) -> list[dict]:

@@ -128,10 +128,11 @@ def _sb_charger_tous(sb) -> dict:
     users = {}
     for row in (res.data or []):
         users[row["username"]] = {
-            "nom": row["nom"],
-            "role": row["role"],
-            "salt": row["salt"],
+            "nom":           row["nom"],
+            "role":          row["role"],
+            "salt":          row["salt"],
             "password_hash": row["password_hash"],
+            "email":         row.get("email", ""),
         }
     # Initialisation au premier démarrage si vide
     if not users:
@@ -169,11 +170,12 @@ def _sauvegarder(data: dict) -> None:
             # Supabase : upsert de chaque utilisateur (insert ou update)
             for username, info in data.get("users", {}).items():
                 sb.table("users").upsert({
-                    "username": username,
-                    "nom": info["nom"],
-                    "role": info["role"],
-                    "salt": info["salt"],
-                    "password_hash": info["password_hash"],
+                    "username":     username,
+                    "nom":          info["nom"],
+                    "role":         info["role"],
+                    "salt":         info["salt"],
+                    "password_hash":info["password_hash"],
+                    "email":        info.get("email", ""),
                 }).execute()
             return
     except Exception:
@@ -210,12 +212,12 @@ def verifier_credentials(username: str, password: str) -> dict | None:
 def lister_utilisateurs() -> list[dict]:
     data = _charger()
     return [
-        {"username": k, "nom": v["nom"], "role": v["role"]}
+        {"username": k, "nom": v["nom"], "role": v["role"], "email": v.get("email", "")}
         for k, v in data["users"].items()
     ]
 
 
-def creer_utilisateur(username: str, nom: str, role: str, password: str) -> None:
+def creer_utilisateur(username: str, nom: str, role: str, password: str, email: str = "") -> None:
     if role not in ROLES:
         raise ValueError(f"Rôle inconnu : '{role}'. Valeurs acceptées : {list(ROLES)}")
     data = _charger()
@@ -223,11 +225,21 @@ def creer_utilisateur(username: str, nom: str, role: str, password: str) -> None
         raise ValueError(f"L'utilisateur '{username}' existe déjà.")
     salt = secrets.token_hex(16)
     data["users"][username] = {
-        "nom": nom,
-        "role": role,
-        "salt": salt,
+        "nom":           nom,
+        "role":          role,
+        "salt":          salt,
         "password_hash": _hasher(password, salt),
+        "email":         email.strip().lower() if email else "",
     }
+    _sauvegarder(data)
+
+
+def mettre_a_jour_email(username: str, email: str) -> None:
+    """Met à jour l'adresse email d'un utilisateur."""
+    data = _charger()
+    if username not in data["users"]:
+        raise ValueError(f"Utilisateur introuvable : '{username}'")
+    data["users"][username]["email"] = email.strip().lower() if email else ""
     _sauvegarder(data)
 
 

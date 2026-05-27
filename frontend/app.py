@@ -36,6 +36,7 @@ from backend.auth_manager import (
     verifier_credentials, ROLES,
     peut_valider_gate, peut_soumettre, peut_demander_corrections, peut_liberer,
     lister_utilisateurs, creer_utilisateur, supprimer_utilisateur, changer_mot_de_passe,
+    mettre_a_jour_email,
 )
 from backend.dit_manager import (
     lister_dits, charger_dit, sauvegarder_dit, supprimer_dit,
@@ -1198,12 +1199,18 @@ if page == "📋 Workflow":
                     data=data_wf,
                 )
                 sauvegarder_modifications(categorie_active, code_wf, meta_wf)
+                _gate_notif = prochaine_gate(meta_wf) or ""
+                _role_notif = role_pour_gate(_gate_notif) if _gate_notif else ""
                 ajouter_notification(
                     ref=code_wf,
                     categorie=cat_code_selectionne,
                     statut=meta_wf["statut"],
                     acteur=nom_user,
                     message=f"{nom_user} a effectué l'action '{label_action(action_choisie)}' sur `{code_wf}` — statut : {label_statut(meta_wf['statut'])}",
+                    designation=meta_wf.get("designation", ""),
+                    commentaire=commentaire_wf.strip(),
+                    gate=_gate_notif,
+                    role_requis=_role_notif,
                 )
                 st.success(
                     f"✅ **{label_action(action_choisie)}** enregistré — "
@@ -1452,6 +1459,7 @@ if page == "👥 Utilisateurs":
         with fc1:
             new_username = st.text_input("Identifiant *", placeholder="prenom.nom")
             new_nom = st.text_input("Nom affiché *", placeholder="Jean Dupont")
+            new_email = st.text_input("Email (pour notifications)", placeholder="prenom@entreprise.com")
         with fc2:
             new_role = st.selectbox(
                 "Rôle *",
@@ -1471,11 +1479,72 @@ if page == "👥 Utilisateurs":
                 st.error("Le mot de passe doit faire au moins 8 caractères.")
             else:
                 try:
-                    creer_utilisateur(new_username.strip(), new_nom.strip(), new_role, new_mdp)
+                    creer_utilisateur(new_username.strip(), new_nom.strip(), new_role, new_mdp, email=new_email.strip())
                     st.success(f"✅ Compte `{new_username}` créé avec le rôle **{ROLES[new_role]['label']}**.")
                     st.rerun()
                 except ValueError as e:
                     st.error(str(e))
+
+    # ── Emails des utilisateurs existants ──────────────────────────────────────
+    st.divider()
+    st.subheader("📧 Adresses email pour notifications")
+    st.caption("Chaque utilisateur recevra les notifications qui correspondent à son rôle.")
+    utilisateurs_email = lister_utilisateurs()
+    for u in utilisateurs_email:
+        col_em1, col_em2, col_em3 = st.columns([2, 3, 1])
+        with col_em1:
+            st.markdown(f"**{u['nom']}** `{u['role']}`")
+        with col_em2:
+            new_em = st.text_input(
+                "Email",
+                value=u.get("email", ""),
+                placeholder="prenom@entreprise.com",
+                label_visibility="collapsed",
+                key=f"email_{u['username']}",
+            )
+        with col_em3:
+            if st.button("Sauvegarder", key=f"save_email_{u['username']}", use_container_width=True):
+                try:
+                    mettre_a_jour_email(u["username"], new_em)
+                    st.success("✅ Mis à jour")
+                except Exception as e:
+                    st.error(str(e))
+
+    # ── Configuration SMTP ─────────────────────────────────────────────────────
+    st.divider()
+    st.subheader("📮 Configuration SMTP (notifications email)")
+    from backend.email_notifier import email_configure
+    if email_configure():
+        smtp_user = os.environ.get("SMTP_USER", "")
+        email_admin = os.environ.get("EMAIL_ADMIN", "")
+        st.success(f"✅ SMTP configuré — expéditeur : `{smtp_user}`" + (f" | destinataire secours : `{email_admin}`" if email_admin else ""))
+    else:
+        st.warning("⚠️ SMTP non configuré — les notifications email sont désactivées.")
+        with st.expander("Comment configurer les emails ?"):
+            st.markdown("""
+**Étape 1 — Créer un mot de passe d'application Gmail**
+
+1. Connectez-vous sur [myaccount.google.com](https://myaccount.google.com)
+2. Sécurité → Authentification 2 facteurs (activer si pas encore fait)
+3. Sécurité → Mots de passe des applications → Générer un mot de passe pour "Autre"
+4. Copiez le mot de passe à 16 caractères généré
+
+**Étape 2 — Ajouter dans vos variables d'environnement**
+
+Dans votre fichier `.env` (local) ou dans **Streamlit Cloud → App Settings → Secrets** :
+
+```toml
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = "587"
+SMTP_USER = "votre.email@gmail.com"
+SMTP_PASSWORD = "xxxx xxxx xxxx xxxx"
+EMAIL_FROM = "Qual.IA <votre.email@gmail.com>"
+EMAIL_ADMIN = "admin@votre-entreprise.com"
+```
+
+**`EMAIL_ADMIN`** = email de secours qui reçoit toutes les notifications si un utilisateur n'a pas d'email configuré.
+""")
+        st.info("ℹ️ Les notifications in-app (cloche dans l'app) fonctionnent indépendamment du SMTP.")
 
     st.stop()
 

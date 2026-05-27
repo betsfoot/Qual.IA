@@ -26,6 +26,9 @@ CREATE TABLE IF NOT EXISTS notifications (
     lue_par              JSONB NOT NULL DEFAULT '[]'
 );
 
+-- Colonne email pour les notifications (ajout idempotent)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT DEFAULT '';
+
 -- Désactiver RLS (accès serveur direct via clé API)
 ALTER TABLE users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
