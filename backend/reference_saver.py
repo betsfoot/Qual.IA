@@ -123,8 +123,34 @@ def proposer_code_reference(categorie, brief: dict) -> str:
     return prefixe
 
 
+def _get_sb():
+    try:
+        from backend.supabase_client import get_supabase
+        return get_supabase()
+    except Exception:
+        return None
+
+
+def _sb_upsert(sb, cat_code: str, code: str, metadata: dict, data: dict) -> None:
+    meta_clean = {k: v for k, v in metadata.items() if not k.startswith("_")}
+    sb.table("dossiers").upsert({
+        "categorie": cat_code,
+        "code": code,
+        "metadata": meta_clean,
+        "data": data,
+    }).execute()
+
+
 def reference_existe(categorie, code: str) -> bool:
     cat = _resoudre_categorie(categorie)
+    sb = _get_sb()
+    if sb:
+        try:
+            res = sb.table("dossiers").select("code").eq("categorie", cat.code).eq("code", _slug_reference(code)).execute()
+            if res.data is not None:
+                return bool(res.data)
+        except Exception:
+            pass
     return (cat.references_dir / _slug_reference(code)).exists()
 
 
@@ -255,6 +281,19 @@ def enregistrer_reference(
     (data_dir / "amdec_process.json").write_text(json.dumps(amdec_process, ensure_ascii=False, indent=2), encoding="utf-8")
     (data_dir / "gamme.json").write_text(json.dumps(gamme, ensure_ascii=False, indent=2), encoding="utf-8")
     (data_dir / "plan_controle.json").write_text(json.dumps(plan_controle, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # Persistance Supabase
+    sb = _get_sb()
+    if sb:
+        try:
+            _sb_upsert(sb, cat.code, code, metadata, {
+                "amdec_produit": amdec_produit,
+                "amdec_process": amdec_process,
+                "gamme": gamme,
+                "plan_controle": plan_controle,
+            })
+        except Exception:
+            pass
 
     return ref_dir
 

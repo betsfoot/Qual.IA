@@ -32,3 +32,17 @@ ALTER TABLE notifications DISABLE ROW LEVEL SECURITY;
 
 -- Index pour accélérer les requêtes de notifications par date
 CREATE INDEX IF NOT EXISTS idx_notifications_date ON notifications (date DESC);
+
+-- Table des dossiers qualité (références + documents AMDEC/Gamme)
+CREATE TABLE IF NOT EXISTS dossiers (
+    categorie     TEXT NOT NULL,
+    code          TEXT NOT NULL,
+    metadata      JSONB NOT NULL DEFAULT '{}',
+    data          JSONB NOT NULL DEFAULT '{}',
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (categorie, code)
+);
+
+ALTER TABLE dossiers DISABLE ROW LEVEL SECURITY;
+CREATE INDEX IF NOT EXISTS idx_dossiers_categorie ON dossiers (categorie);
