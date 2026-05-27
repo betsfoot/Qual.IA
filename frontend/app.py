@@ -120,6 +120,19 @@ html, body, [class*="css"] {
     color: #FFFFFF !important;
     border-color: rgba(255,255,255,0.25) !important;
 }
+/* Codes de référence (backticks) dans la sidebar */
+[data-testid="stSidebar"] code {
+    background-color: rgba(255,255,255,0.18) !important;
+    color: #FFFFFF !important;
+    padding: 1px 5px !important;
+    border-radius: 4px !important;
+    font-size: 0.78rem !important;
+}
+/* Metric sidebar */
+[data-testid="stSidebar"] [data-testid="stMetric"] {
+    background-color: rgba(255,255,255,0.10) !important;
+    border-left: 3px solid rgba(255,255,255,0.4) !important;
+}
 
 /* ── Titres de page ── */
 h1 {
