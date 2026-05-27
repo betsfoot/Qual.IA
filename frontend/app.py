@@ -207,27 +207,66 @@ h2, h3 {
 hr {
     border-color: #D6E0EE !important;
 }
+
+/* ── Page de login ── */
+.login-header {
+    background: linear-gradient(135deg, #1B3A6B 0%, #2E5499 100%);
+    padding: 3rem 2rem 2.5rem 2rem;
+    text-align: center;
+    margin: -1rem -1rem 2rem -1rem;
+    border-radius: 0 0 16px 16px;
+}
+.login-header h1 {
+    color: #FFFFFF !important;
+    font-size: 2.8rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -1px;
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0.3rem !important;
+}
+.login-header p {
+    color: #A8BDD8;
+    font-size: 1.05rem;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+.login-card {
+    background: #FFFFFF;
+    border: 1px solid #D6E0EE;
+    border-radius: 14px;
+    padding: 2rem 1.8rem;
+    box-shadow: 0 4px 20px rgba(27,58,107,0.10);
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ─── Authentification ─────────────────────────────────────────────────────────
 
 if "user" not in st.session_state:
+    st.markdown("""
+    <div class="login-header">
+        <h1>Qual.IA</h1>
+        <p>Gestion Qualité Industrielle — Optique &amp; Horlogerie</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     _, col_c, _ = st.columns([1, 2, 1])
     with col_c:
-        st.markdown("# Qual.IA")
-        st.markdown("**Connectez-vous pour accéder à l'application.**")
-        st.divider()
-        _username = st.text_input("Identifiant", placeholder="admin")
-        _password = st.text_input("Mot de passe", type="password")
-        if st.button("Se connecter", type="primary", use_container_width=True):
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        st.markdown("##### Connexion à votre espace")
+        _username = st.text_input("Identifiant", placeholder="Votre identifiant", label_visibility="visible")
+        _password = st.text_input("Mot de passe", type="password", placeholder="••••••••")
+        st.write("")
+        if st.button("Se connecter →", type="primary", use_container_width=True):
             _result = verifier_credentials(_username.strip(), _password)
             if _result:
                 st.session_state["user"] = _result
                 st.rerun()
             else:
                 st.error("Identifiant ou mot de passe incorrect.")
-        st.divider()
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.write("")
         st.caption("Contactez votre administrateur si vous avez oublié vos identifiants.")
     st.stop()
 
@@ -243,7 +282,7 @@ if "backup_demarrage_fait" not in st.session_state:
 
 with st.sidebar:
     st.markdown("### Qual.IA")
-    st.caption("MVP v1.1 — multi-catégories")
+    st.caption("Gestion Qualité Industrielle")
     st.divider()
 
     # ── Utilisateur connecté ──
@@ -1454,6 +1493,14 @@ if page == "📚 Gestion de la base":
     st.divider()
     st.subheader("🔍 Liste des références")
 
+    # ── Recherche textuelle ──
+    recherche = st.text_input(
+        "Rechercher",
+        placeholder="Code, désignation, matière, traitement…",
+        key="recherche_refs",
+        label_visibility="collapsed",
+    )
+
     filt_c1, filt_c2, filt_c3, filt_c4 = st.columns(4)
     with filt_c1:
         f_type = st.multiselect("Type", sorted(stats.get("types", {}).keys()))
@@ -1465,19 +1512,44 @@ if page == "📚 Gestion de la base":
         f_statut = st.multiselect("Statut", sorted(stats.get("statuts", {}).keys()))
 
     filtered = references
+
+    # Recherche textuelle libre
+    if recherche:
+        q = recherche.strip().lower()
+        def _match_ref(r: dict) -> bool:
+            if q in r.get("reference", "").lower():
+                return True
+            if q in r.get("designation", "").lower():
+                return True
+            if q in r.get("matiere", "").lower():
+                return True
+            if q in r.get("type_produit", "").lower():
+                return True
+            for t in r.get("traitements", []):
+                code_t = t.get("code", "") if isinstance(t, dict) else str(t)
+                if q in code_t.lower():
+                    return True
+            return False
+        filtered = [r for r in filtered if _match_ref(r)]
+
+    # Filtres par catégorie
     if f_type:
         filtered = [r for r in filtered if r.get("type_produit") in f_type]
     if f_matiere:
         filtered = [r for r in filtered if r.get("matiere") in f_matiere]
     if f_traitement:
-        # Les traitements peuvent être des str ou des dict {"code":..., "typologie":...}
         def _codes_traitement(traitements_list):
             return {t.get("code", "") if isinstance(t, dict) else str(t) for t in traitements_list}
         filtered = [r for r in filtered if _codes_traitement(r.get("traitements", [])) & set(f_traitement)]
     if f_statut:
         filtered = [r for r in filtered if r.get("statut") in f_statut]
 
-    st.caption(f"**{len(filtered)}** référence(s) sur {len(references)}")
+    nb_total = len(references)
+    nb_filtres = len(filtered)
+    if recherche or f_type or f_matiere or f_traitement or f_statut:
+        st.caption(f"**{nb_filtres}** référence(s) trouvée(s) sur {nb_total}")
+    else:
+        st.caption(f"**{nb_total}** référence(s) au total")
 
     # Tableau récap
     if filtered:
