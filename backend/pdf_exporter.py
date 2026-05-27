@@ -334,6 +334,68 @@ def _section_gamme(gamme: dict, s: dict) -> list:
     return elements
 
 
+# ── Plan de Contrôle ─────────────────────────────────────────────────────────
+
+def _section_plan_controle(plan: dict, s: dict) -> list:
+    points = plan.get("points_controle", [])
+    elements = [
+        PageBreak(),
+        Paragraph("Plan de Contrôle", s["section"]),
+        Paragraph(f"{len(points)} point(s) de contrôle", s["sous_titre"]),
+    ]
+    if not points:
+        elements.append(Paragraph("Aucun point de contrôle défini.", s["valeur"]))
+        return elements
+
+    headers = ["ID", "Phase", "Caractéristique", "Spécification", "Moyen de contrôle", "Fréquence", "Critère acceptation", "Action NC"]
+    col_w_raw = [10, 18, 35, 28, 30, 18, 28, 30]
+    usable = PAGE_W - 2 * MARGIN
+    total = sum(col_w_raw)
+    col_w = [c * mm * usable / (total * mm) for c in col_w_raw]
+
+    # Palette de couleurs par phase
+    PHASE_COLORS = {
+        "reception":   colors.HexColor("#dbeafe"),
+        "fabrication": colors.HexColor("#dcfce7"),
+        "final":       colors.HexColor("#fef9c3"),
+    }
+
+    rows = [headers]
+    style_cmds = []
+    for i, pt in enumerate(points, start=1):
+        phase = str(pt.get("phase", "")).lower()
+        row = [
+            Paragraph(str(pt.get("id", i)), s["cell"]),
+            Paragraph(str(pt.get("phase", "")), s["cell_bold"]),
+            Paragraph(str(pt.get("caracteristique", "")), s["cell"]),
+            Paragraph(str(pt.get("specification", "")), s["cell"]),
+            Paragraph(str(pt.get("moyen_controle", "")), s["cell"]),
+            Paragraph(str(pt.get("frequence", "")), s["cell"]),
+            Paragraph(str(pt.get("critere_acceptation", "")), s["cell"]),
+            Paragraph(str(pt.get("action_non_conformite", "")), s["cell"]),
+        ]
+        rows.append(row)
+        bg = PHASE_COLORS.get(phase)
+        if bg:
+            style_cmds.append(("BACKGROUND", (0, i), (-1, i), bg))
+
+    t = Table(rows, colWidths=col_w, repeatRows=1)
+    ts = _table_style_amdec(len(rows))
+    for cmd in style_cmds:
+        ts.add(*cmd)
+    t.setStyle(ts)
+    elements.append(t)
+
+    # Récapitulatif par phase
+    from collections import Counter
+    phases = Counter(str(pt.get("phase", "—")).capitalize() for pt in points)
+    if phases:
+        recap = "  |  ".join(f"<b>{ph}</b> : {n}" for ph, n in sorted(phases.items()))
+        elements.append(Paragraph(recap, ParagraphStyle("tp", parent=s["valeur"], spaceBefore=4)))
+
+    return elements
+
+
 # ── Point d'entrée principal ──────────────────────────────────────────────────
 
 def exporter_dossier_pdf(
@@ -341,18 +403,19 @@ def exporter_dossier_pdf(
     amdec_produit: dict,
     amdec_process: dict,
     gamme: dict,
+    plan_controle: dict | None = None,
     sections: list[str] | None = None,
 ) -> bytes:
     """
     Génère un PDF complet du dossier qualité.
 
     sections : liste de clés à inclure parmi
-        ["garde", "amdec_produit", "amdec_process", "gamme"]
+        ["garde", "amdec_produit", "amdec_process", "gamme", "plan_controle"]
         None = toutes
     Retourne les bytes du PDF.
     """
     if sections is None:
-        sections = ["garde", "amdec_produit", "amdec_process", "gamme"]
+        sections = ["garde", "amdec_produit", "amdec_process", "gamme", "plan_controle"]
 
     buf = io.BytesIO()
     ref = metadata.get("reference", "dossier")
@@ -378,6 +441,8 @@ def exporter_dossier_pdf(
         story += _section_amdec_process(amdec_process, s)
     if "gamme" in sections:
         story += _section_gamme(gamme, s)
+    if "plan_controle" in sections:
+        story += _section_plan_controle(plan_controle or {}, s)
 
     doc.build(
         story,

@@ -550,6 +550,52 @@ if page == "📥 Importer un Excel":
         COLONNES_AMDEC_PRODUIT, COLONNES_AMDEC_PROCESS, COLONNES_GAMME,
         _mapper_colonnes_auto, _appliquer_mapping, _detecter_ligne_header,
     )
+
+    # Labels lisibles pour le mapping (technique → humain)
+    LABELS_COLONNES = {
+        # Commun AMDEC Produit / Process
+        "no":                       "N° de ligne",
+        "famille":                  "Famille / Catégorie",
+        "fonction_exigence":        "Fonction / Exigence",
+        "caracteristique_critique": "Caractéristique critique (KPC)",
+        "mode_defaillance":         "Mode de défaillance ★",
+        "effets_defaillance":       "Effets de la défaillance",
+        "effets_produit":           "Effets sur le produit",
+        "G":                        "G — Gravité (1–10) ★",
+        "causes_defaillance":       "Causes de la défaillance",
+        "causes_process":           "Causes process",
+        "O":                        "O — Occurrence (1–10) ★",
+        "controles_existants":      "Contrôles existants",
+        "controles_process":        "Maîtrises process",
+        "D":                        "D — Détection (1–10) ★",
+        "classe_criticite":         "Classe criticité / IPR",
+        "actions_correctives":      "Actions correctives",
+        "responsable":              "Responsable",
+        "delai":                    "Délai / Échéance",
+        # AMDEC Process
+        "operation_process":        "Opération / Étape process ★",
+        "etape_poste":              "Étape / Poste machine",
+        "parametre_cle":            "Paramètre clé (KPC)",
+        "valeur_cible":             "Valeur cible / Spécification",
+        # Gamme
+        "no_op":                    "N° d'opération ★",
+        "designation":              "Désignation de l'opération ★",
+        "description_detaillee":    "Description détaillée",
+        "poste_machine":            "Poste / Machine",
+        "outillage_fixture":        "Outillage / Fixture",
+        "parametre_1":              "Paramètre 1",
+        "valeur_1":                 "Valeur 1",
+        "parametre_2":              "Paramètre 2",
+        "valeur_2":                 "Valeur 2",
+        "parametre_3":              "Paramètre 3",
+        "temps_min":                "Temps (min)",
+        "point_controle":           "Point de contrôle",
+        "moyen_controle":           "Moyen de contrôle",
+        "frequence":                "Fréquence de contrôle",
+        "critere_acceptation":      "Critère d'acceptation",
+        "ref_dit":                  "Réf. DIT / Document",
+        "ref_infor":                "Réf. Infor / ERP",
+    }
     from backend.reference_saver import proposer_code_reference, enregistrer_reference, reference_existe
 
     st.title(f"📥 Importer un fichier Excel — {categorie_active.nom}")
@@ -645,7 +691,16 @@ if page == "📥 Importer un Excel":
                 colonnes_excel = [c for c in df.columns if c and not str(c).startswith("col_")]
                 auto = _mapper_colonnes_auto(colonnes_excel, colonnes_cibles)
 
-                st.caption(f"**{len(df)} lignes de données** — vérifie et corrige le mapping si besoin.")
+                # Résumé du mapping auto
+                nb_auto = len(auto)
+                nb_total = len(colonnes_cibles)
+                nb_manquants = nb_total - nb_auto
+                if nb_manquants == 0:
+                    st.success(f"✅ **{nb_auto}/{nb_total} colonnes détectées automatiquement** — vérifiez et corrigez si besoin.")
+                else:
+                    st.warning(f"⚠️ **{nb_auto}/{nb_total} colonnes détectées** — {nb_manquants} colonne(s) à mapper manuellement (marquées ★ si obligatoires).")
+
+                st.caption(f"**{len(df)} lignes de données** | Faites correspondre chaque champ Qual.IA à la colonne de votre fichier Excel.")
                 cols_display = st.columns(2)
                 mapping_corr = {}
                 for i, cible in enumerate(colonnes_cibles):
@@ -653,11 +708,15 @@ if page == "📥 Importer un Excel":
                     options_col = ["— Ignorer —"] + colonnes_excel
                     val_auto = auto.get(cible, "— Ignorer —")
                     idx_auto = options_col.index(val_auto) if val_auto in options_col else 0
+                    label_lisible = LABELS_COLONNES.get(cible, cible)
+                    # Badge couleur : vert si auto-détecté, orange sinon
+                    badge = "✅ " if val_auto != "— Ignorer —" else "🔶 "
                     choix = col_widget.selectbox(
-                        f"`{cible}`",
+                        f"{badge}{label_lisible}",
                         options_col,
                         index=idx_auto,
                         key=f"map_{cle}_{cible}",
+                        help=f"Champ interne : `{cible}`",
                     )
                     if choix != "— Ignorer —":
                         mapping_corr[cible] = choix
@@ -665,10 +724,14 @@ if page == "📥 Importer un Excel":
                 mapping_final[cle] = mapping_corr
                 lignes = _appliquer_mapping(df, mapping_corr, colonnes_cibles)
                 lignes_finales[cle] = lignes
-                st.caption(f"→ {len(lignes)} lignes prêtes à importer")
+                nb_mappes = len(mapping_corr)
+                st.caption(f"→ **{nb_mappes}/{nb_total} champs mappés** | **{len(lignes)} lignes** prêtes à importer")
 
                 if lignes:
-                    st.dataframe(pd.DataFrame(lignes[:5]), use_container_width=True, hide_index=True)
+                    # Aperçu avec noms lisibles
+                    df_preview = pd.DataFrame(lignes[:5])
+                    df_preview.columns = [LABELS_COLONNES.get(c, c) for c in df_preview.columns]
+                    st.dataframe(df_preview, use_container_width=True, hide_index=True)
 
         st.divider()
 
@@ -1163,6 +1226,7 @@ if page == "📋 Workflow":
                     amdec_produit=data_wf.get("amdec_produit", {}),
                     amdec_process=data_wf.get("amdec_process", {}),
                     gamme=data_wf.get("gamme", {}),
+                    plan_controle=data_wf.get("plan_controle", {}),
                 )
                 st.download_button(
                     label="⬇️ Télécharger le PDF",
@@ -2083,6 +2147,7 @@ if page == "📚 Gestion de la base":
             "amdec_produit": "AMDEC Produit",
             "amdec_process": "AMDEC Process",
             "gamme": "Gamme de production",
+            "plan_controle": "Plan de Contrôle",
         }
         sections_choisies = st.multiselect(
             "Sections à inclure",
@@ -2098,6 +2163,7 @@ if page == "📚 Gestion de la base":
                     amdec_produit=data.get("amdec_produit", {}),
                     amdec_process=data.get("amdec_process", {}),
                     gamme=data.get("gamme", {}),
+                    plan_controle=data.get("plan_controle", {}),
                     sections=sections_choisies or None,
                 )
                 st.download_button(
@@ -2110,6 +2176,56 @@ if page == "📚 Gestion de la base":
                 st.success(f"PDF prêt — {len(pdf_bytes):,} octets.")
             except Exception as e:
                 st.error(f"Erreur génération PDF : {e}")
+
+        st.divider()
+        # ── Duplication ───────────────────────────────────────────────────────
+        st.markdown("### 📋 Dupliquer la référence")
+        st.caption("Crée une copie complète avec un nouveau code. Le doublon démarre en brouillon.")
+        col_dup1, col_dup2 = st.columns([3, 1])
+        with col_dup1:
+            code_copie = st.text_input(
+                "Nouveau code pour la copie",
+                value=f"{code_selectionne}-COPIE",
+                key=f"dup_code_{code_selectionne}",
+            )
+        with col_dup2:
+            acteur_dup = st.text_input("Rédacteur", value="", placeholder="Votre nom", key=f"dup_acteur_{code_selectionne}")
+        if st.button("📋 Dupliquer", key=f"btn_dup_{code_selectionne}"):
+            from backend.reference_saver import enregistrer_reference, reference_existe
+            code_copie_clean = code_copie.strip().upper().replace(" ", "-")
+            if not code_copie_clean:
+                st.error("Le code de la copie ne peut pas être vide.")
+            elif not acteur_dup.strip():
+                st.error("Le nom du rédacteur est obligatoire.")
+            elif reference_existe(categorie_active, code_copie_clean):
+                st.error(f"La référence `{code_copie_clean}` existe déjà. Choisir un autre code.")
+            else:
+                try:
+                    brief_copie = {
+                        "type_produit":       meta.get("type_produit"),
+                        "matiere":            meta.get("matiere"),
+                        "traitements":        meta.get("traitements", []),
+                        "dimensions":         meta.get("dimensions", {}),
+                        "exigences_speciales": meta.get("exigences_speciales", ""),
+                        "designation_client": f"[Copie] {meta.get('designation', '')}",
+                    }
+                    dossier_copie = {**data, "metadonnees_generation": {
+                        "reference_source": code_selectionne,
+                        "score_similarite": 1.0,
+                        "mode_generation":  "duplication",
+                    }}
+                    enregistrer_reference(
+                        categorie=categorie_active,
+                        code=code_copie_clean,
+                        brief=brief_copie,
+                        dossier=dossier_copie,
+                        acteur=acteur_dup.strip(),
+                        commentaire_creation=f"Copie de {code_selectionne}",
+                        overwrite=False,
+                    )
+                    st.success(f"Référence `{code_copie_clean}` créée avec succès. Rechargez la page pour la voir.")
+                except Exception as e:
+                    st.error(f"Erreur lors de la duplication : {e}")
 
         st.divider()
         st.markdown("### Modifier le statut")
