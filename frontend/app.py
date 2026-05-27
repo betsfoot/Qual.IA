@@ -54,6 +54,122 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.markdown("""
+<style>
+/* ── Masquer éléments Streamlit génériques ── */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+.stDeployButton {display: none;}
+
+/* ── Typographie globale ── */
+html, body, [class*="css"] {
+    font-family: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] {
+    background-color: #1B3A6B !important;
+    border-right: none;
+}
+[data-testid="stSidebar"] * {
+    color: #E8EFF8 !important;
+}
+[data-testid="stSidebar"] .stRadio label {
+    color: #E8EFF8 !important;
+    font-weight: 500;
+}
+[data-testid="stSidebar"] .stSelectbox label,
+[data-testid="stSidebar"] .stCaption {
+    color: #A8BDD8 !important;
+}
+[data-testid="stSidebar"] hr {
+    border-color: #2E5499 !important;
+}
+[data-testid="stSidebar"] .stMetric label {
+    color: #A8BDD8 !important;
+}
+[data-testid="stSidebar"] .stMetric [data-testid="stMetricValue"] {
+    color: #FFFFFF !important;
+    font-size: 1.1rem !important;
+}
+
+/* ── Titres de page ── */
+h1 {
+    color: #1B3A6B !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.5px;
+    border-bottom: 3px solid #1B3A6B;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+h2, h3 {
+    color: #1B3A6B !important;
+    font-weight: 600 !important;
+}
+
+/* ── Métriques ── */
+[data-testid="stMetric"] {
+    background-color: #EEF2F7;
+    border-radius: 10px;
+    padding: 12px 16px;
+    border-left: 4px solid #1B3A6B;
+}
+[data-testid="stMetricLabel"] {
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #4A5568 !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    color: #1B3A6B !important;
+}
+
+/* ── Boutons primaires ── */
+.stButton > button[kind="primary"] {
+    background-color: #1B3A6B !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.3px;
+    padding: 0.5rem 1.2rem;
+    transition: background-color 0.2s;
+}
+.stButton > button[kind="primary"]:hover {
+    background-color: #142d52 !important;
+}
+
+/* ── Containers (cards) ── */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 10px !important;
+    border: 1px solid #D6E0EE !important;
+    box-shadow: 0 1px 4px rgba(27,58,107,0.07);
+}
+
+/* ── Tabs ── */
+.stTabs [data-baseweb="tab-list"] {
+    border-bottom: 2px solid #D6E0EE;
+}
+.stTabs [data-baseweb="tab"] {
+    font-weight: 600;
+    color: #4A5568;
+}
+.stTabs [aria-selected="true"] {
+    color: #1B3A6B !important;
+    border-bottom: 2px solid #1B3A6B !important;
+}
+
+/* ── Divider ── */
+hr {
+    border-color: #D6E0EE !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ─── Authentification ─────────────────────────────────────────────────────────
 
 if "user" not in st.session_state:
