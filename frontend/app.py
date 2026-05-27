@@ -33,11 +33,21 @@ from backend.workflow_manager import (
     STATUTS, calculer_ipr_max, calculer_gates_requises, role_pour_gate,
 )
 from backend.auth_manager import (
-    verifier_credentials, ROLES, GROUPES_ROLES,
+    verifier_credentials, ROLES,
     peut_valider_gate, peut_soumettre, peut_demander_corrections, peut_liberer,
     lister_utilisateurs, creer_utilisateur, supprimer_utilisateur, changer_mot_de_passe,
     mettre_a_jour_email,
 )
+try:
+    from backend.auth_manager import GROUPES_ROLES
+except ImportError:
+    GROUPES_ROLES = {
+        "validation": "🔐 Validation workflow",
+        "metier":     "📣 Métiers notifiés",
+        "redaction":  "✏️ Rédaction",
+        "admin":      "⚙️ Administration",
+        "autre":      "👁️ Lecture seule",
+    }
 from backend.dit_manager import (
     lister_dits, charger_dit, sauvegarder_dit, supprimer_dit,
     dit_existe, nouveau_dit, generer_dit_ia,
