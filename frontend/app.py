@@ -33,7 +33,7 @@ from backend.workflow_manager import (
     STATUTS, calculer_ipr_max, calculer_gates_requises, role_pour_gate,
 )
 from backend.auth_manager import (
-    verifier_credentials, ROLES,
+    verifier_credentials, ROLES, GROUPES_ROLES,
     peut_valider_gate, peut_soumettre, peut_demander_corrections, peut_liberer,
     lister_utilisateurs, creer_utilisateur, supprimer_utilisateur, changer_mot_de_passe,
     mettre_a_jour_email,
@@ -1400,151 +1400,276 @@ if page == "👥 Utilisateurs":
         st.error("Accès réservé aux administrateurs.")
         st.stop()
 
+    from backend.email_notifier import email_configure
+    from backend.notification_manager import ROLES_PAR_STATUT
+
     st.title("👥 Gestion des utilisateurs")
-    st.caption("Créer, modifier et supprimer les comptes utilisateurs de l'application.")
+
+    tab_comptes, tab_emails, tab_smtp = st.tabs([
+        "👤 Comptes", "📧 Emails & Notifications", "📮 Configuration SMTP"
+    ])
 
     utilisateurs = lister_utilisateurs()
 
-    # ── Tableau des utilisateurs existants ────────────────────────────────────
-    st.subheader("Comptes actifs")
-    for u in utilisateurs:
-        role_label = ROLES.get(u["role"], {}).get("label", u["role"])
-        with st.container(border=True):
-            uc1, uc2, uc3, uc4 = st.columns([2, 2, 2, 1])
-            uc1.markdown(f"**`{u['username']}`**")
-            uc2.write(u["nom"])
-            uc3.write(role_label)
-            with uc4:
-                if u["username"] != user["username"]:
-                    if st.button("🗑️", key=f"del_user_{u['username']}",
-                                 help=f"Supprimer {u['username']}"):
+    # ════════════════════════════════════════════════════════════════
+    with tab_comptes:
+        st.subheader("Comptes actifs")
+
+        # ── Tableau groupé par groupe de rôle ────────────────────────
+        groupes_affiches = {}
+        for u in utilisateurs:
+            groupe = ROLES.get(u["role"], {}).get("groupe", "autre")
+            groupes_affiches.setdefault(groupe, []).append(u)
+
+        for groupe_code, groupe_label in GROUPES_ROLES.items():
+            membres = groupes_affiches.get(groupe_code, [])
+            if not membres:
+                continue
+            st.markdown(f"**{groupe_label}**")
+            for u in membres:
+                role_info = ROLES.get(u["role"], {})
+                with st.container(border=True):
+                    uc1, uc2, uc3, uc4, uc5 = st.columns([2, 2, 2, 2, 1])
+                    uc1.markdown(f"**`{u['username']}`**")
+                    uc2.write(u["nom"])
+                    uc3.write(role_info.get("label", u["role"]))
+                    email_affiche = u.get("email", "")
+                    uc4.write(f"✉️ `{email_affiche}`" if email_affiche else "⚠️ *pas d'email*")
+                    with uc5:
+                        if u["username"] != user["username"]:
+                            if st.button("🗑️", key=f"del_user_{u['username']}",
+                                         help=f"Supprimer {u['username']}"):
+                                try:
+                                    supprimer_utilisateur(u["username"])
+                                    st.success(f"Utilisateur `{u['username']}` supprimé.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(str(e))
+                        else:
+                            st.caption("(vous)")
+
+        # ── Réinitialisation mot de passe ────────────────────────────
+        st.divider()
+        st.subheader("🔑 Réinitialiser un mot de passe")
+        usernames = [u["username"] for u in utilisateurs]
+        col_r1, col_r2, col_r3 = st.columns([2, 2, 1])
+        with col_r1:
+            cible_reset = st.selectbox("Utilisateur", usernames, key="reset_user_select")
+        with col_r2:
+            nouveau_mdp_admin = st.text_input("Nouveau mot de passe", type="password", key="reset_mdp_admin")
+        with col_r3:
+            st.write("")
+            st.write("")
+            if st.button("Réinitialiser", key="btn_reset_admin"):
+                if not nouveau_mdp_admin.strip():
+                    st.error("Le mot de passe ne peut pas être vide.")
+                elif len(nouveau_mdp_admin) < 8:
+                    st.error("Minimum 8 caractères.")
+                else:
+                    try:
+                        changer_mot_de_passe(cible_reset, nouveau_mdp_admin)
+                        st.success(f"Mot de passe de `{cible_reset}` réinitialisé.")
+                    except Exception as e:
+                        st.error(str(e))
+
+        # ── Créer un nouvel utilisateur ──────────────────────────────
+        st.divider()
+        st.subheader("➕ Créer un utilisateur")
+
+        # Description des rôles disponibles
+        with st.expander("Voir les rôles disponibles"):
+            for groupe_code, groupe_label in GROUPES_ROLES.items():
+                roles_du_groupe = [(k, v) for k, v in ROLES.items() if v.get("groupe") == groupe_code]
+                if not roles_du_groupe:
+                    continue
+                st.markdown(f"**{groupe_label}**")
+                for r_code, r_info in roles_du_groupe:
+                    gates_str = ", ".join(r_info.get("gates", [])) or "—"
+                    st.markdown(
+                        f"- `{r_code}` — **{r_info['label']}** : {r_info.get('description', '')}  "
+                        f"_(Gates : {gates_str})_"
+                    )
+
+        with st.form("form_creer_user"):
+            fc1, fc2 = st.columns(2)
+            with fc1:
+                new_username = st.text_input("Identifiant *", placeholder="prenom.nom")
+                new_nom = st.text_input("Nom affiché *", placeholder="Jean Dupont")
+                new_email_form = st.text_input(
+                    "Email notifications",
+                    placeholder="prenom@entreprise.com",
+                    help="L'email utilisé pour envoyer les notifications liées au rôle.",
+                )
+            with fc2:
+                new_role = st.selectbox(
+                    "Rôle *",
+                    options=list(ROLES.keys()),
+                    format_func=lambda r: f"{ROLES[r]['label']} — {ROLES[r].get('description', '')}",
+                )
+                new_mdp = st.text_input("Mot de passe *", type="password", placeholder="Min. 8 caractères")
+                new_mdp2 = st.text_input("Confirmer le mot de passe *", type="password")
+
+            if st.form_submit_button("Créer le compte", type="primary"):
+                if not new_username.strip() or not new_nom.strip() or not new_mdp:
+                    st.error("Tous les champs obligatoires (identifiant, nom, mot de passe) doivent être remplis.")
+                elif new_mdp != new_mdp2:
+                    st.error("Les mots de passe ne correspondent pas.")
+                elif len(new_mdp) < 8:
+                    st.error("Le mot de passe doit faire au moins 8 caractères.")
+                else:
+                    try:
+                        creer_utilisateur(
+                            new_username.strip(), new_nom.strip(), new_role, new_mdp,
+                            email=new_email_form.strip(),
+                        )
+                        st.success(f"✅ Compte `{new_username}` créé avec le rôle **{ROLES[new_role]['label']}**.")
+                        st.rerun()
+                    except ValueError as e:
+                        st.error(str(e))
+
+    # ════════════════════════════════════════════════════════════════
+    with tab_emails:
+        st.subheader("📧 Adresses email par utilisateur")
+        st.caption(
+            "Renseignez l'email de chaque personne. "
+            "Les notifications seront envoyées automatiquement selon leur rôle."
+        )
+
+        # ── Statut SMTP ──────────────────────────────────────────────
+        if email_configure():
+            smtp_user_disp = os.environ.get("SMTP_USER", "")
+            st.success(f"✅ SMTP actif — les emails sont envoyés depuis `{smtp_user_disp}`")
+        else:
+            st.warning("⚠️ SMTP non configuré — allez dans l'onglet **Configuration SMTP** pour activer les emails.")
+
+        # ── Tableau "qui reçoit quoi" ────────────────────────────────
+        st.markdown("---")
+        st.markdown("#### Récapitulatif : qui reçoit quoi")
+
+        EVENT_LABELS = {
+            "creation":    "📥 Nouveau dossier créé",
+            "en_revue":    "👁️ Dossier soumis en revue",
+            "corrections": "🔄 Corrections demandées",
+            "approuve":    "✅ Dossier approuvé",
+            "libere":      "🚀 Dossier libéré en production",
+            "obsolete":    "🗄️ Dossier rendu obsolète",
+        }
+        import pandas as pd
+        routing_rows = []
+        for evt_code, evt_label in EVENT_LABELS.items():
+            roles_evt = ROLES_PAR_STATUT.get(evt_code, [])
+            # Trouver les personnes ayant ces rôles
+            personnes = [
+                f"{u['nom']} ({ROLES.get(u['role'],{}).get('label', u['role'])})"
+                + (" ✉️" if u.get("email") else " ⚠️")
+                for u in utilisateurs if u["role"] in roles_evt
+            ]
+            routing_rows.append({
+                "Événement": evt_label,
+                "Destinataires": ", ".join(personnes) if personnes else "— (aucun utilisateur avec ce rôle)",
+            })
+        st.dataframe(pd.DataFrame(routing_rows), use_container_width=True, hide_index=True)
+        st.caption("✉️ = email configuré | ⚠️ = pas d'email → utilise EMAIL_ADMIN comme secours")
+
+        # ── Formulaire email par utilisateur ────────────────────────
+        st.markdown("---")
+        st.markdown("#### Modifier les emails")
+
+        for groupe_code, groupe_label in GROUPES_ROLES.items():
+            membres_g = [u for u in utilisateurs if ROLES.get(u["role"], {}).get("groupe") == groupe_code]
+            if not membres_g:
+                continue
+            st.markdown(f"**{groupe_label}**")
+            for u in membres_g:
+                role_info = ROLES.get(u["role"], {})
+                col_n, col_r, col_e, col_btn = st.columns([2, 2, 3, 1])
+                col_n.write(u["nom"])
+                col_r.caption(role_info.get("label", u["role"]))
+                new_em_val = col_e.text_input(
+                    "Email",
+                    value=u.get("email", ""),
+                    placeholder="prenom@entreprise.com",
+                    label_visibility="collapsed",
+                    key=f"em_{u['username']}",
+                )
+                with col_btn:
+                    if st.button("💾", key=f"save_em_{u['username']}", help="Sauvegarder"):
                         try:
-                            supprimer_utilisateur(u["username"])
-                            st.success(f"Utilisateur `{u['username']}` supprimé.")
+                            mettre_a_jour_email(u["username"], new_em_val)
+                            st.success("✅")
                             st.rerun()
                         except Exception as e:
                             st.error(str(e))
-                else:
-                    st.caption("(vous)")
 
-    # ── Réinitialisation mot de passe ────────────────────────────────────────
-    st.divider()
-    st.subheader("🔑 Réinitialiser un mot de passe")
-    usernames = [u["username"] for u in utilisateurs]
-    col_r1, col_r2, col_r3 = st.columns([2, 2, 1])
-    with col_r1:
-        cible_reset = st.selectbox("Utilisateur", usernames, key="reset_user_select")
-    with col_r2:
-        nouveau_mdp_admin = st.text_input("Nouveau mot de passe", type="password", key="reset_mdp_admin")
-    with col_r3:
-        st.write("")
-        st.write("")
-        if st.button("Réinitialiser", key="btn_reset_admin"):
-            if not nouveau_mdp_admin.strip():
-                st.error("Le mot de passe ne peut pas être vide.")
-            elif len(nouveau_mdp_admin) < 8:
-                st.error("Minimum 8 caractères.")
-            else:
-                try:
-                    changer_mot_de_passe(cible_reset, nouveau_mdp_admin)
-                    st.success(f"Mot de passe de `{cible_reset}` réinitialisé.")
-                except Exception as e:
-                    st.error(str(e))
+    # ════════════════════════════════════════════════════════════════
+    with tab_smtp:
+        st.subheader("📮 Configuration SMTP")
 
-    # ── Créer un nouvel utilisateur ───────────────────────────────────────────
-    st.divider()
-    st.subheader("➕ Créer un utilisateur")
-    with st.form("form_creer_user"):
-        fc1, fc2 = st.columns(2)
-        with fc1:
-            new_username = st.text_input("Identifiant *", placeholder="prenom.nom")
-            new_nom = st.text_input("Nom affiché *", placeholder="Jean Dupont")
-            new_email = st.text_input("Email (pour notifications)", placeholder="prenom@entreprise.com")
-        with fc2:
-            new_role = st.selectbox(
-                "Rôle *",
-                options=list(ROLES.keys()),
-                format_func=lambda r: ROLES[r]["label"],
+        if email_configure():
+            smtp_user_cfg = os.environ.get("SMTP_USER", "")
+            email_admin_cfg = os.environ.get("EMAIL_ADMIN", "")
+            st.success(f"✅ SMTP configuré et actif")
+            col_cfg1, col_cfg2 = st.columns(2)
+            col_cfg1.metric("Expéditeur", smtp_user_cfg or "—")
+            col_cfg2.metric("Email de secours", email_admin_cfg or "— (non défini)")
+            st.info(
+                "L'email de secours (`EMAIL_ADMIN`) reçoit les notifications si "
+                "l'utilisateur destinataire n'a pas d'email configuré."
             )
-            new_mdp = st.text_input("Mot de passe *", type="password",
-                                    placeholder="Min. 8 caractères")
-            new_mdp2 = st.text_input("Confirmer le mot de passe *", type="password")
+        else:
+            st.warning("⚠️ SMTP non configuré — les notifications email sont **désactivées**.")
+            st.info("Les notifications in-app (cloche 🔔) fonctionnent indépendamment du SMTP.")
 
-        if st.form_submit_button("Créer le compte", type="primary"):
-            if not new_username.strip() or not new_nom.strip() or not new_mdp:
-                st.error("Tous les champs sont obligatoires.")
-            elif new_mdp != new_mdp2:
-                st.error("Les mots de passe ne correspondent pas.")
-            elif len(new_mdp) < 8:
-                st.error("Le mot de passe doit faire au moins 8 caractères.")
-            else:
-                try:
-                    creer_utilisateur(new_username.strip(), new_nom.strip(), new_role, new_mdp, email=new_email.strip())
-                    st.success(f"✅ Compte `{new_username}` créé avec le rôle **{ROLES[new_role]['label']}**.")
-                    st.rerun()
-                except ValueError as e:
-                    st.error(str(e))
-
-    # ── Emails des utilisateurs existants ──────────────────────────────────────
-    st.divider()
-    st.subheader("📧 Adresses email pour notifications")
-    st.caption("Chaque utilisateur recevra les notifications qui correspondent à son rôle.")
-    utilisateurs_email = lister_utilisateurs()
-    for u in utilisateurs_email:
-        col_em1, col_em2, col_em3 = st.columns([2, 3, 1])
-        with col_em1:
-            st.markdown(f"**{u['nom']}** `{u['role']}`")
-        with col_em2:
-            new_em = st.text_input(
-                "Email",
-                value=u.get("email", ""),
-                placeholder="prenom@entreprise.com",
-                label_visibility="collapsed",
-                key=f"email_{u['username']}",
-            )
-        with col_em3:
-            if st.button("Sauvegarder", key=f"save_email_{u['username']}", use_container_width=True):
-                try:
-                    mettre_a_jour_email(u["username"], new_em)
-                    st.success("✅ Mis à jour")
-                except Exception as e:
-                    st.error(str(e))
-
-    # ── Configuration SMTP ─────────────────────────────────────────────────────
-    st.divider()
-    st.subheader("📮 Configuration SMTP (notifications email)")
-    from backend.email_notifier import email_configure
-    if email_configure():
-        smtp_user = os.environ.get("SMTP_USER", "")
-        email_admin = os.environ.get("EMAIL_ADMIN", "")
-        st.success(f"✅ SMTP configuré — expéditeur : `{smtp_user}`" + (f" | destinataire secours : `{email_admin}`" if email_admin else ""))
-    else:
-        st.warning("⚠️ SMTP non configuré — les notifications email sont désactivées.")
-        with st.expander("Comment configurer les emails ?"):
-            st.markdown("""
-**Étape 1 — Créer un mot de passe d'application Gmail**
+        st.markdown("---")
+        st.markdown("#### Guide de configuration — Gmail")
+        st.markdown("""
+**Étape 1 — Mot de passe d'application Gmail**
 
 1. Connectez-vous sur [myaccount.google.com](https://myaccount.google.com)
-2. Sécurité → Authentification 2 facteurs (activer si pas encore fait)
-3. Sécurité → Mots de passe des applications → Générer un mot de passe pour "Autre"
-4. Copiez le mot de passe à 16 caractères généré
+2. **Sécurité → Authentification 2 facteurs** (activer si nécessaire)
+3. **Sécurité → Mots de passe des applications** → Générer → "Autre" → nommer "Qual.IA"
+4. Copiez le mot de passe à **16 caractères** généré (format : `xxxx xxxx xxxx xxxx`)
 
-**Étape 2 — Ajouter dans vos variables d'environnement**
+**Étape 2 — Variables à configurer**
 
-Dans votre fichier `.env` (local) ou dans **Streamlit Cloud → App Settings → Secrets** :
+Dans **Streamlit Cloud → votre app → Settings → Secrets** (format TOML) :
 
 ```toml
-SMTP_HOST = "smtp.gmail.com"
-SMTP_PORT = "587"
-SMTP_USER = "votre.email@gmail.com"
+SMTP_HOST     = "smtp.gmail.com"
+SMTP_PORT     = "587"
+SMTP_USER     = "votre.email@gmail.com"
 SMTP_PASSWORD = "xxxx xxxx xxxx xxxx"
-EMAIL_FROM = "Qual.IA <votre.email@gmail.com>"
-EMAIL_ADMIN = "admin@votre-entreprise.com"
+EMAIL_FROM    = "Qual.IA <votre.email@gmail.com>"
+EMAIL_ADMIN   = "responsable@votre-entreprise.com"
 ```
 
-**`EMAIL_ADMIN`** = email de secours qui reçoit toutes les notifications si un utilisateur n'a pas d'email configuré.
+Ou dans le fichier **`.env`** en local (même format sans guillemets TOML).
+
+> **`EMAIL_ADMIN`** : email de secours qui reçoit toutes les notifications tant qu'un utilisateur n'a pas d'email renseigné. Mettez votre propre email ici pour commencer.
+
+**Étape 3 — Relancer l'application**
+
+Après avoir enregistré les secrets, relancez l'app Streamlit Cloud pour que les variables soient prises en compte.
 """)
-        st.info("ℹ️ Les notifications in-app (cloche dans l'app) fonctionnent indépendamment du SMTP.")
+        st.markdown("---")
+        st.markdown("#### Autres fournisseurs SMTP")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            st.markdown("""
+**Office 365 / Outlook**
+```toml
+SMTP_HOST = "smtp.office365.com"
+SMTP_PORT = "587"
+```
+""")
+        with col_s2:
+            st.markdown("""
+**OVH / Ionos / hébergeur**
+```toml
+SMTP_HOST = "ssl0.ovh.net"   # exemple OVH
+SMTP_PORT = "587"
+```
+""")
 
     st.stop()
 

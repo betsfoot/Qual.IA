@@ -17,50 +17,123 @@ CONFIG_DIR = Path(__file__).parent.parent / "config"
 USERS_FILE = CONFIG_DIR / "users.json"
 
 # ─── Définition des rôles ─────────────────────────────────────────────────────
-
+#
+# Chaque rôle déclare :
+#   label            : nom affiché dans l'interface
+#   description      : courte description métier
+#   groupe           : famille (validation / metier / admin)
+#   gates            : gates de workflow que ce rôle peut valider
+#   peut_soumettre   : peut soumettre un dossier en revue
+#   peut_corrections : peut demander des corrections
+#   peut_liberer     : peut libérer un dossier en production
+#
 ROLES = {
+    # ── Administration ──────────────────────────────────────────────────────
     "admin": {
-        "label": "Administrateur",
-        "gates": ["Vérification BT", "Approbation Qualité", "Validation Direction"],
-        "peut_soumettre": True,
-        "peut_corrections": True,
-        "peut_liberer": True,
-    },
-    "bt": {
-        "label": "Bureau Technique",
-        "gates": ["Vérification BT"],
-        "peut_soumettre": True,
-        "peut_corrections": False,
-        "peut_liberer": False,
-    },
-    "qualite": {
-        "label": "Responsable Qualité",
-        "gates": ["Approbation Qualité"],
-        "peut_soumettre": False,
-        "peut_corrections": True,
-        "peut_liberer": False,
+        "label":          "Administrateur",
+        "description":    "Accès complet — gère les utilisateurs et tous les workflows",
+        "groupe":         "admin",
+        "gates":          ["Vérification BT", "Approbation Qualité", "Validation Direction", "Validation Méthodes"],
+        "peut_soumettre":  True,
+        "peut_corrections":True,
+        "peut_liberer":    True,
     },
     "direction": {
-        "label": "Direction",
-        "gates": ["Validation Direction"],
-        "peut_soumettre": False,
-        "peut_corrections": False,
-        "peut_liberer": True,
+        "label":          "Direction",
+        "description":    "Valide les dossiers à fort enjeu (IPR > 100)",
+        "groupe":         "validation",
+        "gates":          ["Validation Direction"],
+        "peut_soumettre":  False,
+        "peut_corrections":False,
+        "peut_liberer":    True,
     },
+
+    # ── Validation technique ────────────────────────────────────────────────
+    "bt": {
+        "label":          "Bureau Technique",
+        "description":    "Vérifie la cohérence technique AMDEC / Gamme",
+        "groupe":         "validation",
+        "gates":          ["Vérification BT"],
+        "peut_soumettre":  True,
+        "peut_corrections":False,
+        "peut_liberer":    False,
+    },
+    "qualite": {
+        "label":          "Responsable Qualité",
+        "description":    "Approuve les dossiers qualité et peut demander des corrections",
+        "groupe":         "validation",
+        "gates":          ["Approbation Qualité"],
+        "peut_soumettre":  False,
+        "peut_corrections":True,
+        "peut_liberer":    False,
+    },
+    "methodes": {
+        "label":          "Responsable Méthodes",
+        "description":    "Valide les procédés et gammes de fabrication",
+        "groupe":         "validation",
+        "gates":          ["Validation Méthodes"],
+        "peut_soumettre":  True,
+        "peut_corrections":True,
+        "peut_liberer":    False,
+    },
+
+    # ── Métiers notifiés (pas de gate, informés en lecture) ─────────────────
+    "indus": {
+        "label":          "Responsable Industrialisation",
+        "description":    "Reçoit les notifications — suit la mise en production",
+        "groupe":         "metier",
+        "gates":          [],
+        "peut_soumettre":  False,
+        "peut_corrections":False,
+        "peut_liberer":    False,
+    },
+    "outillage": {
+        "label":          "Responsable Outillage",
+        "description":    "Reçoit les notifications — gère les outillages et fixtures",
+        "groupe":         "metier",
+        "gates":          [],
+        "peut_soumettre":  False,
+        "peut_corrections":False,
+        "peut_liberer":    False,
+    },
+    "prod": {
+        "label":          "Responsable Production",
+        "description":    "Reçoit les notifications — responsable de la ligne de production",
+        "groupe":         "metier",
+        "gates":          [],
+        "peut_soumettre":  False,
+        "peut_corrections":False,
+        "peut_liberer":    False,
+    },
+
+    # ── Rédaction ───────────────────────────────────────────────────────────
     "redacteur": {
-        "label": "Chef de Projet",
-        "gates": [],
-        "peut_soumettre": True,
-        "peut_corrections": False,
-        "peut_liberer": False,
+        "label":          "Chef de Projet / Rédacteur",
+        "description":    "Crée et soumet les dossiers qualité",
+        "groupe":         "redaction",
+        "gates":          [],
+        "peut_soumettre":  True,
+        "peut_corrections":False,
+        "peut_liberer":    False,
     },
     "viewer": {
-        "label": "Lecteur",
-        "gates": [],
-        "peut_soumettre": False,
-        "peut_corrections": False,
-        "peut_liberer": False,
+        "label":          "Lecteur",
+        "description":    "Consultation uniquement — aucune action possible",
+        "groupe":         "autre",
+        "gates":          [],
+        "peut_soumettre":  False,
+        "peut_corrections":False,
+        "peut_liberer":    False,
     },
+}
+
+# Groupes de rôles pour l'affichage dans l'admin
+GROUPES_ROLES = {
+    "validation": "🔐 Validation workflow",
+    "metier":     "📣 Métiers notifiés",
+    "redaction":  "✏️ Rédaction",
+    "admin":      "⚙️ Administration",
+    "autre":      "👁️ Lecture seule",
 }
 
 # Comptes créés automatiquement au premier démarrage
@@ -68,6 +141,7 @@ _UTILISATEURS_DEFAUT = [
     ("admin",     "Administrateur",    "admin",     "Admin123!"),
     ("bt",        "Bureau Technique",  "bt",        "BT123!"),
     ("qualite",   "Resp. Qualité",     "qualite",   "Qualite123!"),
+    ("methodes",  "Resp. Méthodes",    "methodes",  "Methodes123!"),
     ("direction", "Direction",         "direction", "Direction123!"),
     ("redacteur", "Chef de Projet",    "redacteur", "ChefProjet123!"),
 ]

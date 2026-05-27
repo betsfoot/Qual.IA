@@ -66,11 +66,16 @@ def calculer_ipr_max(data: dict) -> int:
 
 
 def calculer_gates_requises(ipr_max: int) -> list[str]:
-    """Retourne la liste des gates requises selon l'IPR max."""
+    """Retourne la liste des gates requises selon l'IPR max.
+
+    IPR > 100 : fort risque → BT + Méthodes + Qualité + Direction
+    IPR > 40  : risque modéré → BT + Méthodes + Qualité
+    IPR ≤ 40  : risque faible → BT uniquement
+    """
     if ipr_max > 100:
-        return ["Vérification BT", "Approbation Qualité", "Validation Direction"]
+        return ["Vérification BT", "Validation Méthodes", "Approbation Qualité", "Validation Direction"]
     elif ipr_max > 40:
-        return ["Vérification BT", "Approbation Qualité"]
+        return ["Vérification BT", "Validation Méthodes", "Approbation Qualité"]
     else:
         return ["Vérification BT"]
 
@@ -311,10 +316,11 @@ def _chercher_placeholders(obj, chemin: str, acc: list) -> None:
 # ─── Mapping gate → rôle requis ──────────────────────────────────────────────
 
 GATE_ROLES = {
-    "Vérification BT": "bt",
-    "Approbation Qualité": "qualite",
-    "Validation Direction": "direction",
-    "Validation Responsable Méthodes": "qualite",  # procédé extrapolé — revue renforcée
+    "Vérification BT":              "bt",
+    "Validation Méthodes":          "methodes",
+    "Approbation Qualité":          "qualite",
+    "Validation Direction":         "direction",
+    "Validation Responsable Méthodes": "methodes",  # alias legacy — procédé extrapolé
 }
 
 

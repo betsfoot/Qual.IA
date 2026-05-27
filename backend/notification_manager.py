@@ -18,14 +18,29 @@ NOTIF_FILE = ROOT / "config" / "notifications.json"
 
 logger = logging.getLogger(__name__)
 
-# Rôles notifiés pour chaque statut de transition
+# ─── Routing des notifications par événement ─────────────────────────────────
+#
+# Pour chaque événement, liste des rôles qui reçoivent la notification (in-app + email).
+# Modifier ici pour ajouter/retirer des destinataires selon votre organisation.
+#
 ROLES_PAR_STATUT = {
-    "creation":    ["admin", "qualite"],
-    "en_revue":    ["bt", "qualite", "direction", "admin"],
+    # Nouveau dossier créé → toute l'équipe concernée est informée
+    "creation":    ["admin", "qualite", "methodes", "bt", "indus", "outillage", "prod"],
+
+    # Dossier soumis en revue → les validateurs de la gate courante
+    "en_revue":    ["bt", "methodes", "qualite", "direction", "admin"],
+
+    # Corrections demandées → le rédacteur doit agir
     "corrections": ["redacteur", "admin"],
-    "approuve":    ["redacteur", "admin"],
-    "libere":      ["redacteur", "qualite", "admin"],
-    "obsolete":    ["admin"],
+
+    # Dossier approuvé (toutes gates) → le rédacteur est informé
+    "approuve":    ["redacteur", "qualite", "methodes", "admin"],
+
+    # Dossier libéré en production → production + qualité informées
+    "libere":      ["redacteur", "qualite", "methodes", "prod", "indus", "outillage", "admin"],
+
+    # Dossier rendu obsolète → admin uniquement
+    "obsolete":    ["admin", "qualite"],
 }
 
 
