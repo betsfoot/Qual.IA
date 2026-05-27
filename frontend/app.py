@@ -79,8 +79,7 @@ html, body, [class*="css"] {
     color: #E8EFF8 !important;
     font-weight: 500;
 }
-[data-testid="stSidebar"] .stSelectbox label,
-[data-testid="stSidebar"] .stCaption {
+[data-testid="stSidebar"] .stCaption p {
     color: #A8BDD8 !important;
 }
 [data-testid="stSidebar"] hr {
@@ -92,6 +91,34 @@ html, body, [class*="css"] {
 [data-testid="stSidebar"] .stMetric [data-testid="stMetricValue"] {
     color: #FFFFFF !important;
     font-size: 1.1rem !important;
+}
+/* Boutons sidebar */
+[data-testid="stSidebar"] .stButton > button {
+    background-color: rgba(255,255,255,0.12) !important;
+    color: #FFFFFF !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+    border-radius: 8px !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+    background-color: rgba(255,255,255,0.22) !important;
+}
+/* Selectbox sidebar */
+[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    background-color: rgba(255,255,255,0.12) !important;
+    border-color: rgba(255,255,255,0.25) !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"] span {
+    color: #FFFFFF !important;
+}
+/* Expander sidebar */
+[data-testid="stSidebar"] .streamlit-expanderHeader {
+    color: #E8EFF8 !important;
+}
+/* Input sidebar */
+[data-testid="stSidebar"] input {
+    background-color: rgba(255,255,255,0.12) !important;
+    color: #FFFFFF !important;
+    border-color: rgba(255,255,255,0.25) !important;
 }
 
 /* ── Titres de page ── */
@@ -175,7 +202,7 @@ hr {
 if "user" not in st.session_state:
     _, col_c, _ = st.columns([1, 2, 1])
     with col_c:
-        st.markdown("# ⌚ Qual.IA")
+        st.markdown("# Qual.IA")
         st.markdown("**Connectez-vous pour accéder à l'application.**")
         st.divider()
         _username = st.text_input("Identifiant", placeholder="admin")
@@ -202,7 +229,7 @@ if "backup_demarrage_fait" not in st.session_state:
 # ─── Sidebar — Catégorie + Navigation ────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("### ⌚ Qual.IA")
+    st.markdown("### Qual.IA")
     st.caption("MVP v1.1 — multi-catégories")
     st.divider()
 
@@ -250,7 +277,7 @@ with st.sidebar:
         "Catégorie",
         options=codes_options,
         index=idx_default,
-        format_func=lambda c: next((f"{cat.icone} {cat.nom}" for cat in categories_disponibles if cat.code == c), c),
+        format_func=lambda c: next((cat.nom for cat in categories_disponibles if cat.code == c), c),
         label_visibility="collapsed",
     )
 
@@ -308,7 +335,7 @@ if page == "📊 Tableau de bord":
     from backend.retouche_manager import lister_articles_avec_retouches, stats_retouches
 
     st.title("📊 Tableau de bord qualité")
-    st.caption(f"Vue synthétique — {categorie_active.icone} {categorie_active.nom}")
+    st.caption(f"Vue synthétique — {categorie_active.nom}")
 
     toutes_refs = lister_references(categorie_active)
 
@@ -473,7 +500,7 @@ if page == "📥 Importer un Excel":
     )
     from backend.reference_saver import proposer_code_reference, enregistrer_reference, reference_existe
 
-    st.title(f"📥 Importer un fichier Excel — {categorie_active.icone} {categorie_active.nom}")
+    st.title(f"📥 Importer un fichier Excel — {categorie_active.nom}")
     st.caption("Importe les AMDEC et Gamme d'un client directement depuis leur fichier Excel.")
 
     st.divider()
@@ -1119,7 +1146,7 @@ if page == "📋 Workflow":
     st.stop()
 
 if page == "🎨 Typologies":
-    st.title(f"🎨 Typologies de traitement — {categorie_active.icone} {categorie_active.nom}")
+    st.title(f"🎨 Typologies de traitement — {categorie_active.nom}")
     st.caption(
         "Définis les variantes nommées de chaque traitement (composition, outillage, méthode). "
         "Quand un utilisateur sélectionnera ce traitement dans un brief, il pourra choisir la typologie. "
@@ -1366,7 +1393,7 @@ if page == "🔔 Notifications":
 if page == "📚 Gestion de la base":
     import pandas as pd
 
-    st.title(f"📚 Gestion de la base — {categorie_active.icone} {categorie_active.nom}")
+    st.title(f"📚 Gestion de la base — {categorie_active.nom}")
     st.caption("Visualiser, filtrer, éditer et supprimer les références de la catégorie active")
 
     references = lister_references(categorie_active)
@@ -2096,7 +2123,7 @@ if page == "📚 Gestion de la base":
 # PAGE 1 : NOUVEAU PRODUIT (par défaut)
 # ═════════════════════════════════════════════════════════════════════════════
 
-st.title(f"Qual.IA — {categorie_active.icone} {categorie_active.nom}")
+st.title(f"Qual.IA — {categorie_active.nom}")
 st.caption(f"Catégorie active : {categorie_active.description}")
 st.divider()
 
@@ -2259,7 +2286,7 @@ with st.form("brief_form"):
     pf = st.session_state.get("plan_prefill", {})
 
     with col1:
-        st.subheader(f"Caractéristiques produit — {categorie_active.icone} {categorie_active.nom}")
+        st.subheader(f"Caractéristiques produit — {categorie_active.nom}")
 
         if pf:
             st.caption(f"📐 Pré-rempli depuis : `{st.session_state.get('plan_nom', 'plan importé')}`")
