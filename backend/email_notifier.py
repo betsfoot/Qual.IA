@@ -1,23 +1,17 @@
 """
 Notifications par email — Qual.IA.
+Utilise l'API Resend (https://resend.com) pour l'envoi transactionnel.
 
 Configuration dans .env (ou Streamlit Secrets) :
-  SMTP_HOST      = smtp.gmail.com          (défaut Gmail)
-  SMTP_PORT      = 587                     (TLS)
-  SMTP_USER      = votre.email@gmail.com
-  SMTP_PASSWORD  = xxxx xxxx xxxx xxxx    (mot de passe d'application Gmail)
-  EMAIL_FROM     = Qual.IA <votre.email@gmail.com>   (optionnel)
-  EMAIL_ADMIN    = destinataire@entreprise.com        (email de secours global)
+  RESEND_API_KEY = re_xxxxxxxxxxxx     (clé API Resend)
+  RESEND_FROM    = Qual.IA <notifications@qualia-saas.app>   (optionnel)
 
-Avec Gmail : activer l'authentification 2FA puis générer un
-"Mot de passe d'application" sur https://myaccount.google.com/apppasswords
+Seule notification active : "nouveau dossier créé"
+envoyée à tous les utilisateurs ayant un email renseigné avec le rôle admin/qualite.
 """
 
 import os
-import smtplib
 import logging
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -25,31 +19,16 @@ logger = logging.getLogger(__name__)
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 
-def _cfg() -> dict:
-    return {
-        "host":     os.environ.get("SMTP_HOST", "smtp.gmail.com"),
-        "port":     int(os.environ.get("SMTP_PORT", "587")),
-        "user":     os.environ.get("SMTP_USER", ""),
-        "password": os.environ.get("SMTP_PASSWORD", ""),
-        "from":     os.environ.get("EMAIL_FROM", ""),
-        "admin":    os.environ.get("EMAIL_ADMIN", ""),
-    }
-
-
 def email_configure() -> bool:
-    """Retourne True si SMTP_USER et SMTP_PASSWORD sont définis."""
-    cfg = _cfg()
-    return bool(cfg["user"] and cfg["password"])
+    """Retourne True si RESEND_API_KEY est défini."""
+    return bool(os.environ.get("RESEND_API_KEY", "").strip())
 
 
 def get_emails_par_roles(roles: list[str]) -> list[str]:
     """
     Collecte les adresses email des utilisateurs dont le rôle est dans `roles`.
-    Ajoute EMAIL_ADMIN comme destinataire de secours si aucun email trouvé.
     """
     emails = set()
-
-    # Chercher les emails des utilisateurs par rôle
     try:
         from backend.auth_manager import lister_utilisateurs
         for u in lister_utilisateurs():
@@ -57,16 +36,10 @@ def get_emails_par_roles(roles: list[str]) -> list[str]:
                 emails.add(u["email"].strip())
     except Exception:
         pass
-
-    # Fallback : email admin global
-    admin_email = os.environ.get("EMAIL_ADMIN", "").strip()
-    if admin_email:
-        emails.add(admin_email)
-
     return [e for e in emails if e and "@" in e]
 
 
-# ── Envoi bas niveau ──────────────────────────────────────────────────────────
+# ── Envoi via Resend ──────────────────────────────────────────────────────────
 
 def envoyer_email(
     destinataires: list[str],
@@ -75,11 +48,11 @@ def envoyer_email(
     corps_texte: str = "",
 ) -> bool:
     """
-    Envoie un email HTML à une liste de destinataires via SMTP/TLS.
+    Envoie un email HTML via l'API Resend.
     Retourne True si l'envoi a réussi, False sinon (sans lever d'exception).
     """
     if not email_configure():
-        logger.debug("Email non configuré (SMTP_USER/SMTP_PASSWORD absents) — envoi ignoré.")
+        logger.debug("Resend non configuré (RESEND_API_KEY absent) — envoi ignoré.")
         return False
 
     destinataires = [d.strip() for d in destinataires if d and "@" in d]
@@ -87,36 +60,31 @@ def envoyer_email(
         logger.debug("Aucun destinataire valide — envoi ignoré.")
         return False
 
-    cfg = _cfg()
-    expediteur = cfg["from"] or cfg["user"]
+    api_key = os.environ.get("RESEND_API_KEY", "").strip()
+    expediteur = os.environ.get("RESEND_FROM", "Qual.IA <notifications@qualia-saas.app>")
 
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = sujet
-        msg["From"]    = expediteur
-        msg["To"]      = ", ".join(destinataires)
+        import resend
+        resend.api_key = api_key
 
+        params = {
+            "from": expediteur,
+            "to": destinataires,
+            "subject": sujet,
+            "html": corps_html,
+        }
         if corps_texte:
-            msg.attach(MIMEText(corps_texte, "plain", "utf-8"))
-        msg.attach(MIMEText(corps_html, "html", "utf-8"))
+            params["text"] = corps_texte
 
-        with smtplib.SMTP(cfg["host"], cfg["port"], timeout=12) as server:
-            server.ehlo()
-            server.starttls()
-            server.login(cfg["user"], cfg["password"])
-            server.sendmail(expediteur, destinataires, msg.as_string())
-
-        logger.info("Email envoye a %s — sujet : %s", destinataires, sujet)
+        resend.Emails.send(params)
+        logger.info("Email envoyé via Resend à %s — sujet : %s", destinataires, sujet)
         return True
 
-    except smtplib.SMTPAuthenticationError:
-        logger.error("SMTP : erreur d'authentification — verifiez SMTP_USER et SMTP_PASSWORD.")
-        return False
-    except smtplib.SMTPException as e:
-        logger.warning("SMTP echec (%s)", e)
+    except ImportError:
+        logger.error("Package 'resend' non installé. Lancez : pip install resend")
         return False
     except Exception as e:
-        logger.warning("Envoi email echec (%s)", e)
+        logger.warning("Resend — envoi échoué (%s)", e)
         return False
 
 
@@ -198,7 +166,7 @@ def _html_wrap(titre: str, corps: str, statut: str = "") -> str:
 </html>"""
 
 
-# ── Templates métier ──────────────────────────────────────────────────────────
+# ── Notification : nouveau dossier créé ──────────────────────────────────────
 
 def notifier_nouveau_dossier(
     reference: str,
@@ -207,7 +175,7 @@ def notifier_nouveau_dossier(
     redacteur: str,
     destinataires: list[str],
 ) -> bool:
-    """Email envoyé à l'admin/qualité à la création d'un nouveau dossier."""
+    """Email envoyé à la création d'un nouveau dossier."""
     sujet = f"[Qual.IA] Nouveau dossier créé : {reference}"
     corps = f"""
     <p style="font-size:15px;margin:0 0 20px;color:#1e293b;">
@@ -235,59 +203,6 @@ def notifier_nouveau_dossier(
     return envoyer_email(destinataires, sujet, html, texte)
 
 
-def notifier_validation_requise(
-    reference: str,
-    designation: str,
-    categorie: str,
-    soumis_par: str,
-    gate: str,
-    role_requis: str,
-    destinataires: list[str],
-    commentaire: str = "",
-) -> bool:
-    """Email envoyé aux validateurs quand un dossier passe en_revue."""
-    sujet = f"[Qual.IA] Validation requise : {reference} — {gate}"
-    role_labels = {
-        "bt":        "Bureau Technique",
-        "qualite":   "Responsable Qualité",
-        "direction": "Direction",
-        "admin":     "Administrateur",
-    }
-    role_label = role_labels.get(role_requis, role_requis.capitalize())
-    commentaire_html = (
-        f'<p style="font-size:13px;background:#fffbeb;padding:12px 14px;border-radius:6px;'
-        f'margin:16px 0 0;border-left:3px solid #f59e0b;">'
-        f'<strong>Commentaire :</strong> {commentaire}</p>'
-        if commentaire else ""
-    )
-    corps = f"""
-    <p style="font-size:15px;margin:0 0 20px;color:#1e293b;">
-      Un dossier qualité est <strong>en attente de votre validation</strong>.
-    </p>
-    <table style="border-collapse:collapse;width:100%;background:#f8fafc;border-radius:8px;padding:8px;">
-      {_row("Référence", f"<strong>{reference}</strong>")}
-      {_row("Désignation", designation or "—")}
-      {_row("Catégorie", categorie)}
-      {_row("Gate à valider", f'<strong style="color:#1d4ed8;">{gate}</strong>')}
-      {_row("Rôle requis", role_label)}
-      {_row("Soumis par", soumis_par)}
-      {_row("Statut", _badge_html("en_revue"))}
-    </table>
-    {commentaire_html}
-    <p style="font-size:13px;color:#64748b;margin:20px 0 0;">
-      Connectez-vous à <strong>Qual.IA</strong> pour consulter le dossier et effectuer la validation.
-    </p>"""
-    html = _html_wrap(f"Validation requise : {reference}", corps, "en_revue")
-    texte = (
-        f"Validation requise — Qual.IA\n\n"
-        f"Reference : {reference}\n"
-        f"Gate : {gate}\n"
-        f"Soumis par : {soumis_par}\n"
-        f"Role requis : {role_label}"
-    )
-    return envoyer_email(destinataires, sujet, html, texte)
-
-
 def notifier_transition(
     reference: str,
     designation: str,
@@ -297,7 +212,7 @@ def notifier_transition(
     message: str,
     destinataires: list[str],
 ) -> bool:
-    """Email générique pour les autres transitions de workflow (corrections, approuvé, libéré…)."""
+    """Email générique pour les transitions de workflow (corrections, approuvé, libéré…)."""
     statut_labels = {
         "corrections": "Corrections demandées",
         "approuve":    "Approuvé",

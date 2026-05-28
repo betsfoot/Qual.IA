@@ -1415,8 +1415,8 @@ if page == "👥 Utilisateurs":
 
     st.title("👥 Gestion des utilisateurs")
 
-    tab_comptes, tab_emails, tab_smtp = st.tabs([
-        "👤 Comptes", "📧 Emails & Notifications", "📮 Configuration SMTP"
+    tab_comptes, tab_emails = st.tabs([
+        "👤 Comptes", "📧 Emails & Notifications"
     ])
 
     utilisateurs = lister_utilisateurs()
@@ -1545,12 +1545,14 @@ if page == "👥 Utilisateurs":
             "Les notifications seront envoyées automatiquement selon leur rôle."
         )
 
-        # ── Statut SMTP ──────────────────────────────────────────────
+        # ── Statut Resend ─────────────────────────────────────────────
         if email_configure():
-            smtp_user_disp = os.environ.get("SMTP_USER", "")
-            st.success(f"✅ SMTP actif — les emails sont envoyés depuis `{smtp_user_disp}`")
+            st.success("✅ Resend actif — les notifications email sont activées.")
         else:
-            st.warning("⚠️ SMTP non configuré — allez dans l'onglet **Configuration SMTP** pour activer les emails.")
+            st.warning(
+                "⚠️ Resend non configuré — ajoutez `RESEND_API_KEY` dans vos secrets "
+                "Streamlit Cloud (Settings → Secrets) pour activer les emails."
+            )
 
         # ── Tableau "qui reçoit quoi" ────────────────────────────────
         st.markdown("---")
@@ -1610,76 +1612,6 @@ if page == "👥 Utilisateurs":
                             st.rerun()
                         except Exception as e:
                             st.error(str(e))
-
-    # ════════════════════════════════════════════════════════════════
-    with tab_smtp:
-        st.subheader("📮 Configuration SMTP")
-
-        if email_configure():
-            smtp_user_cfg = os.environ.get("SMTP_USER", "")
-            email_admin_cfg = os.environ.get("EMAIL_ADMIN", "")
-            st.success(f"✅ SMTP configuré et actif")
-            col_cfg1, col_cfg2 = st.columns(2)
-            col_cfg1.metric("Expéditeur", smtp_user_cfg or "—")
-            col_cfg2.metric("Email de secours", email_admin_cfg or "— (non défini)")
-            st.info(
-                "L'email de secours (`EMAIL_ADMIN`) reçoit les notifications si "
-                "l'utilisateur destinataire n'a pas d'email configuré."
-            )
-        else:
-            st.warning("⚠️ SMTP non configuré — les notifications email sont **désactivées**.")
-            st.info("Les notifications in-app (cloche 🔔) fonctionnent indépendamment du SMTP.")
-
-        st.markdown("---")
-        st.markdown("#### Guide de configuration — Gmail")
-        st.markdown("""
-**Étape 1 — Mot de passe d'application Gmail**
-
-1. Connectez-vous sur [myaccount.google.com](https://myaccount.google.com)
-2. **Sécurité → Authentification 2 facteurs** (activer si nécessaire)
-3. **Sécurité → Mots de passe des applications** → Générer → "Autre" → nommer "Qual.IA"
-4. Copiez le mot de passe à **16 caractères** généré (format : `xxxx xxxx xxxx xxxx`)
-
-**Étape 2 — Variables à configurer**
-
-Dans **Streamlit Cloud → votre app → Settings → Secrets** (format TOML) :
-
-```toml
-SMTP_HOST     = "smtp.gmail.com"
-SMTP_PORT     = "587"
-SMTP_USER     = "votre.email@gmail.com"
-SMTP_PASSWORD = "xxxx xxxx xxxx xxxx"
-EMAIL_FROM    = "Qual.IA <votre.email@gmail.com>"
-EMAIL_ADMIN   = "responsable@votre-entreprise.com"
-```
-
-Ou dans le fichier **`.env`** en local (même format sans guillemets TOML).
-
-> **`EMAIL_ADMIN`** : email de secours qui reçoit toutes les notifications tant qu'un utilisateur n'a pas d'email renseigné. Mettez votre propre email ici pour commencer.
-
-**Étape 3 — Relancer l'application**
-
-Après avoir enregistré les secrets, relancez l'app Streamlit Cloud pour que les variables soient prises en compte.
-""")
-        st.markdown("---")
-        st.markdown("#### Autres fournisseurs SMTP")
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            st.markdown("""
-**Office 365 / Outlook**
-```toml
-SMTP_HOST = "smtp.office365.com"
-SMTP_PORT = "587"
-```
-""")
-        with col_s2:
-            st.markdown("""
-**OVH / Ionos / hébergeur**
-```toml
-SMTP_HOST = "ssl0.ovh.net"   # exemple OVH
-SMTP_PORT = "587"
-```
-""")
 
     st.stop()
 
