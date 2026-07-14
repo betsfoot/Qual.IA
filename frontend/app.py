@@ -1581,7 +1581,7 @@ if page == "👥 Utilisateurs":
                 "Destinataires": ", ".join(personnes) if personnes else "— (aucun utilisateur avec ce rôle)",
             })
         st.dataframe(pd.DataFrame(routing_rows), use_container_width=True, hide_index=True)
-        st.caption("✉️ = email configuré | ⚠️ = pas d'email → utilise EMAIL_ADMIN comme secours")
+        st.caption("✉️ = email configuré | ⚠️ = pas d'email → cet utilisateur ne recevra pas de notification")
 
         # ── Formulaire email par utilisateur ────────────────────────
         st.markdown("---")
@@ -3595,7 +3595,7 @@ if st.session_state.dossier_genere is not None:
     exports_dir = ROOT / "exports"
     exports_dir.mkdir(exist_ok=True)
 
-    col_e1, col_e2, col_e3 = st.columns(3)
+    col_e1, col_e2, col_e3, col_e4 = st.columns(4)
 
     with col_e1:
         if st.button("Générer AMDEC Produit", use_container_width=True):
@@ -3620,6 +3620,17 @@ if st.session_state.dossier_genere is not None:
             with open(chemin, "rb") as f:
                 st.download_button("Télécharger Gamme", f.read(), file_name=chemin.name,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_gamme")
+
+    with col_e4:
+        if dossier.get("plan_controle"):
+            if st.button("Générer Plan de Contrôle", use_container_width=True):
+                from backend.excel_exporter import exporter_plan_controle
+                chemin = exporter_plan_controle(dossier["plan_controle"], f"{prefixe}_Plan_Controle.xlsx", exports_dir)
+                with open(chemin, "rb") as f:
+                    st.download_button("Télécharger Plan de Contrôle", f.read(), file_name=chemin.name,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_plan_ctrl")
+        else:
+            st.info("Plan de Contrôle non généré (IPR insuffisant ou désactivé)", icon="ℹ️")
 
     st.divider()
     if st.button("Nouveau brief →"):
@@ -3765,7 +3776,7 @@ if st.session_state.dossiers_variantes is not None:
             st.markdown("**Export Excel**")
             exports_dir_v = ROOT / "exports"
             exports_dir_v.mkdir(exist_ok=True)
-            ev1, ev2, ev3 = st.columns(3)
+            ev1, ev2, ev3, ev4 = st.columns(4)
             with ev1:
                 if st.button("AMDEC Produit", key=f"exp_ap_{article}", use_container_width=True):
                     ch = exporter_amdec_produit(dossier_v["amdec_produit"], f"{article}_AMDEC_Produit.xlsx", exports_dir_v)
@@ -3787,6 +3798,15 @@ if st.session_state.dossiers_variantes is not None:
                         st.download_button("⬇️ Télécharger", f.read(), file_name=ch.name,
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             key=f"dl_vg_{article}")
+            with ev4:
+                if dossier_v.get("plan_controle"):
+                    if st.button("Plan Contrôle", key=f"exp_pc_{article}", use_container_width=True):
+                        from backend.excel_exporter import exporter_plan_controle
+                        ch = exporter_plan_controle(dossier_v["plan_controle"], f"{article}_Plan_Controle.xlsx", exports_dir_v)
+                        with open(ch, "rb") as f:
+                            st.download_button("⬇️ Télécharger", f.read(), file_name=ch.name,
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                key=f"dl_vpc_{article}")
 
     # ── Enregistrement en lot ──
     st.divider()

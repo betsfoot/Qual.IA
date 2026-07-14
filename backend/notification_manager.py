@@ -134,21 +134,28 @@ def ajouter_notification(
         "lue_par":             [],
     }
 
+    # ── Persistance (Supabase ou JSON) ────────────────────────────────────────
     try:
         from backend.supabase_client import get_supabase
         sb = get_supabase()
         if sb:
             _sb_ajouter(sb, notif)
             logger.info("Notification Supabase ajoutée pour %s — statut %s", ref, statut)
+        else:
+            notifs = _lire_fichier()
+            notifs.append(notif)
+            _ecrire_fichier(notifs)
+            logger.info("Notification JSON ajoutée pour %s — statut %s", ref, statut)
     except Exception as e:
-        logger.warning("Supabase notification échouée (%s), fallback JSON.", e)
-        notifs = _lire_fichier()
-        notifs.append(notif)
-        _ecrire_fichier(notifs)
-        logger.info("Notification JSON ajoutée pour %s — statut %s", ref, statut)
-        return
+        logger.warning("Persistance notification échouée (%s), fallback JSON.", e)
+        try:
+            notifs = _lire_fichier()
+            notifs.append(notif)
+            _ecrire_fichier(notifs)
+        except Exception:
+            pass
 
-    # ── Envoi email ────────────────────────────────────────────────────────────
+    # ── Envoi email (toujours tenté, indépendamment du mode persistance) ──────
     try:
         _envoyer_email_notification(
             notif,
@@ -171,7 +178,7 @@ def _envoyer_email_notification(
     """Sélectionne le bon template email et envoie aux destinataires concernés."""
     from backend.email_notifier import (
         email_configure, get_emails_par_roles,
-        notifier_nouveau_dossier, notifier_validation_requise, notifier_transition,
+        notifier_nouveau_dossier, notifier_transition,
     )
 
     if not email_configure():
@@ -191,19 +198,8 @@ def _envoyer_email_notification(
     if statut == "creation":
         notifier_nouveau_dossier(ref, designation, categorie, acteur, destinataires)
 
-    elif statut == "en_revue":
-        notifier_validation_requise(
-            reference=ref,
-            designation=designation,
-            categorie=categorie,
-            soumis_par=acteur,
-            gate=gate or "Vérification BT",
-            role_requis=role_requis or "bt",
-            destinataires=destinataires,
-            commentaire=commentaire,
-        )
-
     else:
+        # en_revue, corrections, approuve, libere, obsolete → template générique
         notifier_transition(ref, designation, categorie, statut, acteur, message, destinataires)
 
 

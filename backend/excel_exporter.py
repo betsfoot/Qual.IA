@@ -350,9 +350,90 @@ def exporter_gamme(
     return chemin_sortie
 
 
+def exporter_plan_controle(
+    donnees: dict,
+    nom_fichier: str,
+    exports_dir: Path = None,
+) -> Path:
+    """Exporte le Plan de Contrôle vers un fichier Excel."""
+    if exports_dir is None:
+        exports_dir = EXPORTS_DIR
+    exports_dir.mkdir(parents=True, exist_ok=True)
+
+    chemin_sortie = exports_dir / nom_fichier
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Plan de Contrôle"
+
+    # ── En-tête ──────────────────────────────────────────────────────────────
+    BLEU = "1B3A6B"
+    BLANC = "FFFFFF"
+    GRIS = "F2F2F2"
+    ORANGE_HDR = "FF6600"
+
+    entete_style = Font(bold=True, color=BLANC)
+    entete_fill = PatternFill("solid", fgColor=BLEU)
+    centre = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    ws.cell(row=1, column=1, value="PLAN DE CONTRÔLE").font = Font(bold=True, size=14, color=BLEU)
+    ws.cell(row=2, column=1, value=f"Référence : {donnees.get('reference', '')}")
+    ws.cell(row=3, column=1, value=f"Désignation : {donnees.get('designation', '')}")
+    ws.cell(row=4, column=1, value=f"Version : {donnees.get('version', 'A')} — Date : {donnees.get('date_creation', date.today().isoformat())}")
+
+    # ── Colonnes ─────────────────────────────────────────────────────────────
+    COLONNES = [
+        ("N°", 5), ("Phase", 14), ("Opération Gamme", 20), ("Caractéristique", 20),
+        ("Critère acceptation", 20), ("Moyen de contrôle", 18), ("Fréquence", 12),
+        ("Responsable", 14), ("Enregistrement", 16), ("Action NC", 20),
+    ]
+
+    ROW_HDR = 6
+    for col, (label, width) in enumerate(COLONNES, start=1):
+        cell = ws.cell(row=ROW_HDR, column=col, value=label)
+        cell.font = entete_style
+        cell.fill = entete_fill
+        cell.alignment = centre
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+    # ── Données ───────────────────────────────────────────────────────────────
+    points = donnees.get("points_controle", [])
+    for i, pt in enumerate(points):
+        row = ROW_HDR + 1 + i
+        fill = PatternFill("solid", fgColor=GRIS) if i % 2 == 0 else None
+        valeurs = [
+            pt.get("id", i + 1),
+            pt.get("phase", ""),
+            pt.get("operation_gamme", ""),
+            pt.get("caracteristique", ""),
+            pt.get("critere_acceptation", ""),
+            pt.get("moyen_controle", ""),
+            pt.get("frequence", ""),
+            pt.get("responsable", ""),
+            pt.get("enregistrement", ""),
+            pt.get("action_non_conformite", ""),
+        ]
+        for col, val in enumerate(valeurs, start=1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.alignment = Alignment(vertical="center", wrap_text=True)
+            if fill:
+                cell.fill = fill
+        ws.row_dimensions[row].height = 40
+
+    # ── Avertissements ────────────────────────────────────────────────────────
+    avertissements = donnees.get("avertissements_generateur", [])
+    if avertissements:
+        row_a = ROW_HDR + len(points) + 2
+        ws.cell(row=row_a, column=1, value="⚠️ Avertissements génération IA :").font = Font(bold=True, color=ORANGE_HDR)
+        for j, avert in enumerate(avertissements):
+            ws.cell(row=row_a + 1 + j, column=1, value=f"• {avert}")
+
+    wb.save(chemin_sortie)
+    return chemin_sortie
+
+
 def exporter_dossier_complet(dossier: dict, prefixe: str, exports_dir: Path = None) -> dict:
     """
-    Exporte les 3 documents d'un dossier généré.
+    Exporte les 4 documents d'un dossier généré.
     Retourne un dict avec les chemins des fichiers créés.
     """
     if exports_dir is None:
@@ -383,6 +464,14 @@ def exporter_dossier_complet(dossier: dict, prefixe: str, exports_dir: Path = No
             exports_dir,
         )
         chemins["gamme"] = chemin
+
+    if "plan_controle" in dossier:
+        chemin = exporter_plan_controle(
+            dossier["plan_controle"],
+            f"{prefixe}_Plan_Controle.xlsx",
+            exports_dir,
+        )
+        chemins["plan_controle"] = chemin
 
     return chemins
 

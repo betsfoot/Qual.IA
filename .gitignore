@@ -96,3 +96,5 @@ PUBLIER_SUR_GITHUB.bat
 push.vbs
 push_auto.bat
 push_auto_log.txt
+push_resend.bat
+push_bugfix.bat
