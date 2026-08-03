@@ -301,6 +301,7 @@ if "module_actif" not in st.session_state:
     # Si un seul module autorisé → accès direct sans écran de sélection
     if len(_modules_user) == 1:
         st.session_state["module_actif"] = _modules_user[0]
+        st.rerun()  # Force un rendu propre
     else:
         st.markdown(f"## Bonjour **{user.get('nom', user['username'])}** 👋")
         if user.get("entreprise"):
@@ -436,6 +437,10 @@ with st.sidebar:
     # Navigation programmatique depuis le workflow (goto_page posé par un bouton de carte)
     if st.session_state.get("goto_page") in pages_disponibles:
         st.session_state["nav_page"] = st.session_state.pop("goto_page")
+
+    # Sécurité : si nav_page pointe vers une page hors du module actif → reset
+    if st.session_state.get("nav_page") not in pages_disponibles:
+        st.session_state["nav_page"] = pages_disponibles[0]
 
     page = st.radio(
         "Navigation",
