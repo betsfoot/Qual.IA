@@ -14,6 +14,8 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env", override=True)
 
+LOGO_PATH = ROOT / "assets" / "qual_ia_logo.png"
+
 from backend.config import get_secret
 from backend.similarity_engine import brief_depuis_formulaire, trouver_meilleure_reference, extraire_valeurs_comparaison, trouver_references_composites
 from backend.document_generator import generer_dossier_complet, generer_dossier_variantes
@@ -348,6 +350,8 @@ if "backup_demarrage_fait" not in st.session_state:
 # ─── Sidebar — Catégorie + Navigation ────────────────────────────────────────
 
 with st.sidebar:
+    if LOGO_PATH.exists():
+        st.image(str(LOGO_PATH), use_container_width=True)
     st.markdown("### Qual.IA")
     st.caption("Gestion Qualité Industrielle")
 
