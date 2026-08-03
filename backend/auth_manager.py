@@ -272,6 +272,13 @@ def _supprimer_supabase(username: str) -> bool:
 
 # ─── API publique (inchangée) ─────────────────────────────────────────────────
 
+# ── Modules disponibles ────────────────────────────────────────────────────────
+MODULES_DISPONIBLES = {
+    "dev": "⚙️ Qualité Développement",
+    "nc":  "⚠️ Qualité Documentaire",
+}
+
+
 def verifier_credentials(username: str, password: str) -> dict | None:
     """Retourne le profil utilisateur si les credentials sont valides, None sinon."""
     data = _charger()
@@ -279,19 +286,37 @@ def verifier_credentials(username: str, password: str) -> dict | None:
     if not user:
         return None
     if _hasher(password, user["salt"]) == user["password_hash"]:
-        return {"username": username, "nom": user["nom"], "role": user["role"]}
+        # modules: liste des modules autorisés — défaut = tous si non défini
+        modules = user.get("modules", list(MODULES_DISPONIBLES.keys()))
+        return {
+            "username":   username,
+            "nom":        user["nom"],
+            "role":       user["role"],
+            "entreprise": user.get("entreprise", ""),
+            "modules":    modules,
+        }
     return None
 
 
 def lister_utilisateurs() -> list[dict]:
     data = _charger()
     return [
-        {"username": k, "nom": v["nom"], "role": v["role"], "email": v.get("email", "")}
+        {
+            "username":   k,
+            "nom":        v["nom"],
+            "role":       v["role"],
+            "email":      v.get("email", ""),
+            "entreprise": v.get("entreprise", ""),
+            "modules":    v.get("modules", list(MODULES_DISPONIBLES.keys())),
+        }
         for k, v in data["users"].items()
     ]
 
 
-def creer_utilisateur(username: str, nom: str, role: str, password: str, email: str = "") -> None:
+def creer_utilisateur(
+    username: str, nom: str, role: str, password: str,
+    email: str = "", entreprise: str = "", modules: list | None = None,
+) -> None:
     if role not in ROLES:
         raise ValueError(f"Rôle inconnu : '{role}'. Valeurs acceptées : {list(ROLES)}")
     data = _charger()
@@ -304,7 +329,23 @@ def creer_utilisateur(username: str, nom: str, role: str, password: str, email: 
         "salt":          salt,
         "password_hash": _hasher(password, salt),
         "email":         email.strip().lower() if email else "",
+        "entreprise":    entreprise.strip() if entreprise else "",
+        "modules":       modules if modules is not None else list(MODULES_DISPONIBLES.keys()),
     }
+    _sauvegarder(data)
+
+
+def modifier_acces_utilisateur(username: str, entreprise: str = None, modules: list = None) -> None:
+    """Met à jour l'entreprise et/ou les modules autorisés d'un utilisateur."""
+    data = _charger()
+    if username not in data["users"]:
+        raise ValueError(f"Utilisateur introuvable : '{username}'")
+    if entreprise is not None:
+        data["users"][username]["entreprise"] = entreprise.strip()
+    if modules is not None:
+        if not modules:
+            raise ValueError("Au moins un module doit être autorisé.")
+        data["users"][username]["modules"] = modules
     _sauvegarder(data)
 
 

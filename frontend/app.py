@@ -33,10 +33,10 @@ from backend.workflow_manager import (
     STATUTS, calculer_ipr_max, calculer_gates_requises, role_pour_gate,
 )
 from backend.auth_manager import (
-    verifier_credentials, ROLES,
+    verifier_credentials, ROLES, MODULES_DISPONIBLES,
     peut_valider_gate, peut_soumettre, peut_demander_corrections, peut_liberer,
     lister_utilisateurs, creer_utilisateur, supprimer_utilisateur, changer_mot_de_passe,
-    mettre_a_jour_email,
+    mettre_a_jour_email, modifier_acces_utilisateur,
 )
 try:
     from backend.auth_manager import GROUPES_ROLES
@@ -295,49 +295,37 @@ user = st.session_state["user"]
 
 # ─── Sélection de module (écran d'accueil) ───────────────────────────────────
 
+_modules_user = user.get("modules", list(MODULES_DISPONIBLES.keys()))
+
 if "module_actif" not in st.session_state:
-    st.markdown("""
-<style>
-.qia-module-btn {
-    display: block; width: 100%; padding: 2rem 1.5rem;
-    border-radius: 1rem; text-align: center; cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    text-decoration: none; border: 2px solid transparent;
-}
-.qia-module-btn:hover { transform: translateY(-4px); }
-.qia-module-dev  { background: #EBF0FA; border-color: #1B3A6B; }
-.qia-module-nc   { background: #FFF5E6; border-color: #fd7e14; }
-.qia-module-icon { font-size: 3rem; display: block; margin-bottom: 0.5rem; }
-</style>
-""", unsafe_allow_html=True)
+    # Si un seul module autorisé → accès direct sans écran de sélection
+    if len(_modules_user) == 1:
+        st.session_state["module_actif"] = _modules_user[0]
+    else:
+        st.markdown(f"## Bonjour **{user.get('nom', user['username'])}** 👋")
+        if user.get("entreprise"):
+            st.caption(f"🏢 {user['entreprise']}")
+        st.markdown("### Quel module souhaitez-vous ouvrir ?")
+        st.write("")
 
-    st.markdown(f"## Bonjour **{user['username']}** 👋")
-    st.markdown("### Quel module souhaitez-vous ouvrir ?")
-    st.write("")
+        cols = st.columns(len(_modules_user), gap="large")
+        module_labels = {
+            "dev": ("⚙️ Qualité Développement", "AMDEC · Gamme · Plan de Contrôle · Workflow", "Création et validation des dossiers techniques produit"),
+            "nc":  ("⚠️ Qualité Documentaire",  "NC · 8D · Suggestions IA · KPI alertes",      "Gestion des alertes qualité et résolution de problèmes"),
+        }
+        for i, mod in enumerate(_modules_user):
+            titre, sous_titre, caption = module_labels.get(mod, (mod, "", ""))
+            with cols[i]:
+                if st.button(
+                    f"{titre}\n\n{sous_titre}",
+                    use_container_width=True,
+                    key=f"btn_module_{mod}",
+                ):
+                    st.session_state["module_actif"] = mod
+                    st.rerun()
+                st.caption(caption)
 
-    col_dev, col_nc = st.columns(2, gap="large")
-
-    with col_dev:
-        if st.button(
-            "⚙️ Qualité Développement\n\nAMDEC · Gamme · Plan de Contrôle · Workflow",
-            use_container_width=True,
-            key="btn_module_dev",
-        ):
-            st.session_state["module_actif"] = "dev"
-            st.rerun()
-        st.caption("Création et validation des dossiers techniques produit")
-
-    with col_nc:
-        if st.button(
-            "⚠️ Qualité Documentaire\n\nNC · 8D · Suggestions IA · KPI alertes",
-            use_container_width=True,
-            key="btn_module_nc",
-        ):
-            st.session_state["module_actif"] = "nc"
-            st.rerun()
-        st.caption("Gestion des alertes qualité et résolution de problèmes")
-
-    st.stop()
+        st.stop()
 
 # Bouton retour accueil dans sidebar (ajouté plus bas)
 
@@ -359,11 +347,12 @@ with st.sidebar:
     else:
         st.warning("⚠️ Qualité Documentaire")
 
-    if st.button("← Changer de module", use_container_width=True, key="btn_changer_module"):
-        del st.session_state["module_actif"]
-        if "nav_page" in st.session_state:
-            del st.session_state["nav_page"]
-        st.rerun()
+    if len(_modules_user) > 1:
+        if st.button("← Changer de module", use_container_width=True, key="btn_changer_module"):
+            del st.session_state["module_actif"]
+            if "nav_page" in st.session_state:
+                del st.session_state["nav_page"]
+            st.rerun()
 
     st.divider()
     st.divider()
@@ -1886,8 +1875,8 @@ if page == "👥 Utilisateurs":
 
     st.title("👥 Gestion des utilisateurs")
 
-    tab_comptes, tab_emails = st.tabs([
-        "👤 Comptes", "📧 Emails & Notifications"
+    tab_comptes, tab_emails, tab_acces = st.tabs([
+        "👤 Comptes", "📧 Emails & Notifications", "🔐 Accès & Modules"
     ])
 
     utilisateurs = lister_utilisateurs()
@@ -1981,6 +1970,11 @@ if page == "👥 Utilisateurs":
                     placeholder="prenom@entreprise.com",
                     help="L'email utilisé pour envoyer les notifications liées au rôle.",
                 )
+                new_entreprise_form = st.text_input(
+                    "Entreprise",
+                    placeholder="Ex: Acme SAS",
+                    help="Nom de l'entreprise cliente (utilisé pour le contrôle d'accès multi-client).",
+                )
             with fc2:
                 new_role = st.selectbox(
                     "Rôle *",
@@ -1989,6 +1983,11 @@ if page == "👥 Utilisateurs":
                 )
                 new_mdp = st.text_input("Mot de passe *", type="password", placeholder="Min. 8 caractères")
                 new_mdp2 = st.text_input("Confirmer le mot de passe *", type="password")
+                st.markdown("**Modules autorisés *** :")
+                new_modules_form = []
+                for _mod_code, _mod_label in MODULES_DISPONIBLES.items():
+                    if st.checkbox(_mod_label, value=True, key=f"new_mod_{_mod_code}"):
+                        new_modules_form.append(_mod_code)
 
             if st.form_submit_button("Créer le compte", type="primary"):
                 if not new_username.strip() or not new_nom.strip() or not new_mdp:
@@ -1997,11 +1996,15 @@ if page == "👥 Utilisateurs":
                     st.error("Les mots de passe ne correspondent pas.")
                 elif len(new_mdp) < 8:
                     st.error("Le mot de passe doit faire au moins 8 caractères.")
+                elif not new_modules_form:
+                    st.error("Sélectionnez au moins un module.")
                 else:
                     try:
                         creer_utilisateur(
                             new_username.strip(), new_nom.strip(), new_role, new_mdp,
                             email=new_email_form.strip(),
+                            entreprise=new_entreprise_form.strip(),
+                            modules=new_modules_form,
                         )
                         st.success(f"✅ Compte `{new_username}` créé avec le rôle **{ROLES[new_role]['label']}**.")
                         st.rerun()
@@ -2083,6 +2086,71 @@ if page == "👥 Utilisateurs":
                             st.rerun()
                         except Exception as e:
                             st.error(str(e))
+
+    # ════════════════════════════════════════════════════════════════
+    with tab_acces:
+        st.subheader("🔐 Accès par entreprise et modules")
+        st.caption(
+            "Définissez l'entreprise cliente et les modules autorisés pour chaque compte. "
+            "Un utilisateur sans accès à un module ne verra pas cette section dans l'application."
+        )
+
+        for u in utilisateurs:
+            with st.container(border=True):
+                hdr_col, badge_col = st.columns([4, 2])
+                with hdr_col:
+                    role_info = ROLES.get(u["role"], {})
+                    st.markdown(f"**`{u['username']}`** — {u['nom']}")
+                    st.caption(role_info.get("label", u["role"]))
+                with badge_col:
+                    ent_badge = u.get("entreprise", "")
+                    if ent_badge:
+                        st.info(f"🏢 {ent_badge}", icon=None)
+                    mods_actuels = u.get("modules", list(MODULES_DISPONIBLES.keys()))
+                    badges = " · ".join(MODULES_DISPONIBLES[m] for m in mods_actuels if m in MODULES_DISPONIBLES)
+                    st.caption(f"Accès : {badges or '—'}")
+
+                if u["username"] == user["username"]:
+                    st.caption("_(votre propre compte — modifiable via l'IT)_")
+                    continue
+
+                ent_col, mod_col, btn_col = st.columns([3, 3, 1])
+                with ent_col:
+                    new_ent = st.text_input(
+                        "Entreprise",
+                        value=u.get("entreprise", ""),
+                        placeholder="Ex: Acme SAS",
+                        key=f"ent_{u['username']}",
+                    )
+                with mod_col:
+                    st.markdown("**Modules autorisés :**")
+                    new_mods = []
+                    for mod_code, mod_label in MODULES_DISPONIBLES.items():
+                        if st.checkbox(
+                            mod_label,
+                            value=mod_code in mods_actuels,
+                            key=f"mod_{u['username']}_{mod_code}",
+                        ):
+                            new_mods.append(mod_code)
+                with btn_col:
+                    st.write("")
+                    st.write("")
+                    st.write("")
+                    st.write("")
+                    if st.button("💾", key=f"save_acces_{u['username']}", help="Sauvegarder les accès"):
+                        if not new_mods:
+                            st.error("Au moins 1 module obligatoire.")
+                        else:
+                            try:
+                                modifier_acces_utilisateur(
+                                    u["username"],
+                                    entreprise=new_ent,
+                                    modules=new_mods,
+                                )
+                                st.success(f"✅ Accès de `{u['username']}` mis à jour.")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(str(e))
 
     st.stop()
 
