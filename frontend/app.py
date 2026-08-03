@@ -53,6 +53,14 @@ from backend.dit_manager import (
     dit_existe, nouveau_dit, generer_dit_ia,
 )
 from backend.pdf_exporter import exporter_dossier_pdf
+from backend.nc_manager import (
+    lister_nc, charger_nc, creer_nc, sauvegarder_nc,
+    sauvegarder_photo, supprimer_photo, kpi_nc, suggerer_8d_ia,
+    TYPES_DEFAUT as NC_TYPES_DEFAUT,
+    PHASES_DETECTION as NC_PHASES,
+    NIVEAUX_GRAVITE as NC_GRAVITES,
+    STATUTS_NC, PHOTOS_DIR as NC_PHOTOS_DIR,
+)
 from backend.typologie_manager import (
     charger_typologies, sauvegarder_typologies, lister_typologies,
     creer_ou_maj_typologie, supprimer_typologie, format_traitements_str,
@@ -363,7 +371,7 @@ with st.sidebar:
     if _nb_notifs > 0:
         st.markdown(f"🔔 **{_nb_notifs} notification(s) non lue(s)**")
 
-    pages_disponibles = ["📊 Tableau de bord", "🏭 Nouveau produit", "📥 Importer un Excel", "📋 Workflow", "🔔 Notifications", "📚 Gestion de la base", "🔧 Retouches"]
+    pages_disponibles = ["📊 Tableau de bord", "🏭 Nouveau produit", "📥 Importer un Excel", "📋 Workflow", "⚠️ Non-Conformités", "🔔 Notifications", "📚 Gestion de la base", "🔧 Retouches"]
     if user["role"] == "admin":
         pages_disponibles.append("🎨 Typologies")
         pages_disponibles.append("👥 Utilisateurs")
@@ -551,6 +559,294 @@ if page == "📊 Tableau de bord":
                 })
         if retouche_rows:
             st.dataframe(pd.DataFrame(retouche_rows), use_container_width=True, hide_index=True)
+
+    st.stop()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PAGE : NON-CONFORMITÉS
+# ═════════════════════════════════════════════════════════════════════════════
+
+if page == "⚠️ Non-Conformités":
+    import os
+    import pandas as pd
+    from datetime import date
+
+    st.title("⚠️ Non-Conformités — Alertes qualité")
+
+    # ── Sous-navigation ────────────────────────────────────────────────────────
+    onglet_nc = st.radio(
+        "Onglet NC",
+        ["📊 KPI & Liste", "➕ Nouvelle NC", "🔍 Détail NC"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="onglet_nc",
+    )
+
+    # ── KPI & Liste ────────────────────────────────────────────────────────────
+    if onglet_nc == "📊 KPI & Liste":
+        kpi = kpi_nc()
+
+        # KPI métriques
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Total NC", kpi["total"])
+        k2.metric("🟠 Ouvertes", kpi["ouvertes"])
+        k3.metric("🔵 En cours", kpi["en_cours"])
+        k4.metric("🟢 Fermées", kpi["fermees"])
+
+        if kpi["total"] > 0:
+            st.divider()
+            col_mois, col_type = st.columns([3, 2])
+
+            with col_mois:
+                st.subheader("Alertes par mois")
+                if kpi["par_mois_labels"]:
+                    df_mois = pd.DataFrame({
+                        "Mois": kpi["par_mois_labels"],
+                        "NC":   kpi["par_mois_data"],
+                    }).set_index("Mois")
+                    st.bar_chart(df_mois)
+                else:
+                    st.info("Pas encore de données mensuelles.")
+
+            with col_type:
+                st.subheader("Répartition par type")
+                if kpi["par_type"]:
+                    df_type = pd.DataFrame(
+                        list(kpi["par_type"].items()), columns=["Type", "Nb"]
+                    ).set_index("Type")
+                    st.bar_chart(df_type)
+
+            # Gravité
+            if kpi["par_gravite"]:
+                st.subheader("Répartition par gravité")
+                g1, g2, g3 = st.columns(3)
+                g1.metric("🔴 Critique",  kpi["par_gravite"].get("Critique", 0))
+                g2.metric("🟠 Majeure",   kpi["par_gravite"].get("Majeure", 0))
+                g3.metric("🟡 Mineure",   kpi["par_gravite"].get("Mineure", 0))
+
+        st.divider()
+        st.subheader("Liste des NC")
+
+        # Filtre statut
+        filtre_statut = st.selectbox(
+            "Filtrer par statut",
+            ["Tous"] + list(STATUTS_NC.keys()),
+            format_func=lambda x: "Tous" if x == "Tous" else STATUTS_NC[x],
+        )
+        nc_list = lister_nc(statut=None if filtre_statut == "Tous" else filtre_statut)
+
+        if not nc_list:
+            st.success("Aucune NC" + (f" avec le statut sélectionné" if filtre_statut != "Tous" else "") + ".")
+        else:
+            df_nc = pd.DataFrame(nc_list)[["id", "type_defaut", "phase_detection", "gravite", "statut", "created_at", "dossier_ref"]]
+            df_nc.columns = ["ID", "Type défaut", "Phase", "Gravité", "Statut", "Date", "Dossier lié"]
+            df_nc["Date"] = df_nc["Date"].str[:10]
+            df_nc["Statut"] = df_nc["Statut"].map(lambda s: STATUTS_NC.get(s, s))
+
+            selection = st.dataframe(
+                df_nc, use_container_width=True, hide_index=True,
+                on_select="rerun", selection_mode="single-row",
+            )
+            if selection and selection.selection.rows:
+                idx = selection.selection.rows[0]
+                nc_id_sel = nc_list[idx]["id"]
+                st.session_state["nc_detail_id"] = nc_id_sel
+                st.session_state["onglet_nc"] = "🔍 Détail NC"
+                st.rerun()
+
+    # ── Nouvelle NC ────────────────────────────────────────────────────────────
+    elif onglet_nc == "➕ Nouvelle NC":
+        st.subheader("Créer une nouvelle Non-Conformité")
+
+        with st.form("form_nouvelle_nc"):
+            c1, c2 = st.columns(2)
+            piece_ref  = c1.text_input("Référence pièce / produit", placeholder="ex. REF-2026-001")
+            dossier_rf = c2.text_input("Dossier qualité lié (optionnel)", placeholder="ex. PIECE-001")
+
+            c3, c4, c5 = st.columns(3)
+            date_det   = c3.date_input("Date de détection", value=date.today())
+            phase_det  = c4.selectbox("Phase de détection", NC_PHASES)
+            gravite    = c5.selectbox("Gravité", NC_GRAVITES, index=1)
+
+            type_def   = st.selectbox("Type de défaut", NC_TYPES_DEFAUT)
+            quantite   = st.number_input("Quantité affectée", min_value=1, value=1, step=1)
+            description = st.text_area(
+                "Description de la non-conformité *",
+                height=150,
+                placeholder="Décrivez précisément la NC : symptômes, localisation, conditions de détection…\n\n(Cette description sera analysée par l'IA pour suggérer des axes 8D.)",
+            )
+
+            submitted = st.form_submit_button("✅ Créer la NC", use_container_width=True)
+            if submitted:
+                if not description.strip():
+                    st.error("La description est obligatoire.")
+                else:
+                    nc_cree = creer_nc({
+                        "piece_reference":  piece_ref,
+                        "dossier_ref":      dossier_rf,
+                        "date_detection":   str(date_det),
+                        "phase_detection":  phase_det,
+                        "gravite":          gravite,
+                        "type_defaut":      type_def,
+                        "quantite_affectee": quantite,
+                        "description":      description,
+                    }, user["username"])
+                    st.success(f"NC **{nc_cree['id']}** créée avec succès !")
+                    st.session_state["nc_detail_id"] = nc_cree["id"]
+                    st.session_state["onglet_nc"] = "🔍 Détail NC"
+                    st.rerun()
+
+    # ── Détail NC ──────────────────────────────────────────────────────────────
+    elif onglet_nc == "🔍 Détail NC":
+        # Sélection de la NC
+        nc_ids = [e["id"] for e in lister_nc()]
+        if not nc_ids:
+            st.info("Aucune NC. Créez-en une d'abord.")
+            st.stop()
+
+        default_id = st.session_state.get("nc_detail_id", nc_ids[0])
+        if default_id not in nc_ids:
+            default_id = nc_ids[0]
+
+        nc_id = st.selectbox("Sélectionner une NC", nc_ids, index=nc_ids.index(default_id))
+        st.session_state["nc_detail_id"] = nc_id
+        nc = charger_nc(nc_id)
+        if not nc:
+            st.error("NC introuvable.")
+            st.stop()
+
+        # En-tête
+        st.markdown(f"### {nc['id']} — {nc.get('type_defaut', '?')}")
+        hd1, hd2, hd3, hd4 = st.columns(4)
+        hd1.metric("Phase", nc.get("phase_detection", "?"))
+        hd2.metric("Gravité", nc.get("gravite", "?"))
+        hd3.metric("Qté affectée", nc.get("quantite_affectee", "?"))
+        hd4.metric("Statut", STATUTS_NC.get(nc.get("statut", "ouverte"), "?"))
+
+        # Fiche NC
+        with st.expander("📋 Fiche Non-Conformité", expanded=True):
+            st.markdown(f"**Pièce :** {nc.get('piece_reference') or '—'}")
+            st.markdown(f"**Dossier lié :** {nc.get('dossier_ref') or '—'}")
+            st.markdown(f"**Détecté par :** {nc.get('detecte_par')} le {nc.get('date_detection')}")
+            st.markdown("**Description :**")
+            st.info(nc.get("description", ""))
+
+            # Changement statut
+            nouveau_statut = st.selectbox(
+                "Changer le statut",
+                list(STATUTS_NC.keys()),
+                index=list(STATUTS_NC.keys()).index(nc.get("statut", "ouverte")),
+                format_func=lambda s: STATUTS_NC[s],
+            )
+            if st.button("Appliquer le statut", key="btn_statut_nc"):
+                nc["statut"] = nouveau_statut
+                sauvegarder_nc(nc_id, nc)
+                st.success("Statut mis à jour.")
+                st.rerun()
+
+        # Photos
+        with st.expander("📷 Photos", expanded=False):
+            # Affichage des photos existantes
+            if nc.get("photos"):
+                cols_ph = st.columns(min(4, len(nc["photos"])))
+                for i, nom_ph in enumerate(nc["photos"]):
+                    chemin_ph = NC_PHOTOS_DIR / nom_ph
+                    if chemin_ph.exists():
+                        with cols_ph[i % 4]:
+                            st.image(str(chemin_ph), use_container_width=True, caption=nom_ph)
+                            if st.button("🗑️ Supprimer", key=f"del_ph_{i}"):
+                                supprimer_photo(nc_id, nom_ph)
+                                st.rerun()
+            else:
+                st.caption("Aucune photo pour cette NC.")
+
+            # Upload
+            uploaded = st.file_uploader(
+                "Ajouter une photo", type=["jpg", "jpeg", "png", "webp"], key=f"upload_ph_{nc_id}"
+            )
+            if uploaded:
+                sauvegarder_photo(nc_id, uploaded.name, uploaded.read())
+                st.success(f"Photo '{uploaded.name}' ajoutée.")
+                st.rerun()
+
+        # 8D
+        st.subheader("🔧 Résolution 8D")
+
+        # Bouton suggestions IA
+        ia_key = os.getenv("ANTHROPIC_API_KEY", "")
+        if ia_key:
+            if st.button("✨ Générer suggestions IA", key="btn_ia_nc"):
+                with st.spinner("L'IA analyse la NC et l'historique…"):
+                    sugg = suggerer_8d_ia(nc)
+                if sugg:
+                    st.session_state["nc_suggestions_ia"] = sugg
+                    st.success(f"Suggestions générées (confiance : **{sugg.get('confiance', '?')}**)")
+                    st.info(sugg.get("rationale", ""))
+                else:
+                    st.error("Impossible de générer les suggestions.")
+
+            sugg = st.session_state.get("nc_suggestions_ia")
+            if sugg:
+                with st.expander("💡 Suggestions IA — cliquez pour appliquer", expanded=True):
+                    st.markdown(f"**Confiance :** {sugg.get('confiance', '?')} — {sugg.get('rationale', '')}")
+                    st.markdown(f"**D1 (équipe suggérée) :** {sugg.get('d1_suggestion', '')}")
+                    st.markdown(f"**D3 (confinement suggéré) :** {sugg.get('d3_suggestion', '')}")
+                    st.markdown("**D4 (causes racines) :**")
+                    for c in sugg.get("d4_suggestions", []):
+                        st.markdown(f"  - {c}")
+                    st.markdown("**D5 (actions correctives) :**")
+                    for a in sugg.get("d5_suggestions", []):
+                        st.markdown(f"  - {a}")
+                    st.markdown(f"**D7 (prévention) :** {sugg.get('d7_suggestion', '')}")
+
+                    if st.button("⬇️ Appliquer dans le formulaire 8D", key="btn_appliquer_ia"):
+                        huit_d = nc.setdefault("huit_d", {})
+                        if sugg.get("d1_suggestion"):
+                            huit_d["d1_equipe"] = sugg["d1_suggestion"]
+                        if sugg.get("d3_suggestion"):
+                            huit_d["d3_confinement"] = sugg["d3_suggestion"]
+                        if sugg.get("d4_suggestions"):
+                            huit_d["d4_causes_racines"] = "\n".join(f"{i+1}. {s}" for i, s in enumerate(sugg["d4_suggestions"]))
+                        if sugg.get("d5_suggestions"):
+                            huit_d["d5_actions_correctives"] = "\n".join(f"{i+1}. {s}" for i, s in enumerate(sugg["d5_suggestions"]))
+                        if sugg.get("d7_suggestion"):
+                            huit_d["d7_prevention"] = sugg["d7_suggestion"]
+                        huit_d["suggestions_ia"] = sugg
+                        sauvegarder_nc(nc_id, nc)
+                        st.session_state.pop("nc_suggestions_ia", None)
+                        st.success("Suggestions appliquées !")
+                        st.rerun()
+        else:
+            st.caption("💡 Configurez `ANTHROPIC_API_KEY` dans votre `.env` pour activer les suggestions IA.")
+
+        # Formulaire 8D
+        with st.form("form_8d"):
+            huit_d = nc.get("huit_d", {})
+            d1 = st.text_area("D1 — Équipe pluridisciplinaire", value=huit_d.get("d1_equipe", ""), height=80)
+            d2 = st.text_area("D2 — Description du problème",  value=huit_d.get("d2_description", ""), height=80)
+            d3 = st.text_area("D3 — Actions de confinement",   value=huit_d.get("d3_confinement", ""), height=100)
+            d4 = st.text_area("D4 — Causes racines",           value=huit_d.get("d4_causes_racines", ""), height=120, help="5 Pourquoi, Ishikawa…")
+            d5 = st.text_area("D5 — Actions correctives",      value=huit_d.get("d5_actions_correctives", ""), height=100)
+            d6 = st.text_area("D6 — Mise en œuvre",            value=huit_d.get("d6_mise_en_oeuvre", ""), height=100)
+            d7 = st.text_area("D7 — Prévention récurrence",    value=huit_d.get("d7_prevention", ""), height=100)
+            d8 = st.text_area("D8 — Clôture & Félicitations",  value=huit_d.get("d8_cloture", ""), height=80)
+
+            if st.form_submit_button("💾 Sauvegarder 8D", use_container_width=True):
+                nc["huit_d"].update({
+                    "d1_equipe":              d1,
+                    "d2_description":         d2,
+                    "d3_confinement":         d3,
+                    "d4_causes_racines":      d4,
+                    "d5_actions_correctives": d5,
+                    "d6_mise_en_oeuvre":      d6,
+                    "d7_prevention":          d7,
+                    "d8_cloture":             d8,
+                })
+                if sauvegarder_nc(nc_id, nc):
+                    st.success("8D sauvegardé.")
+                else:
+                    st.error("Erreur lors de la sauvegarde.")
 
     st.stop()
 
