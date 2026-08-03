@@ -33,11 +33,20 @@ from backend.workflow_manager import (
     STATUTS, calculer_ipr_max, calculer_gates_requises, role_pour_gate,
 )
 from backend.auth_manager import (
-    verifier_credentials, ROLES, MODULES_DISPONIBLES,
+    verifier_credentials, ROLES,
     peut_valider_gate, peut_soumettre, peut_demander_corrections, peut_liberer,
     lister_utilisateurs, creer_utilisateur, supprimer_utilisateur, changer_mot_de_passe,
-    mettre_a_jour_email, modifier_acces_utilisateur,
+    mettre_a_jour_email,
 )
+try:
+    from backend.auth_manager import MODULES_DISPONIBLES, modifier_acces_utilisateur
+except ImportError:
+    MODULES_DISPONIBLES = {
+        "dev": "⚙️ Qualité Développement",
+        "nc":  "⚠️ Qualité Documentaire",
+    }
+    def modifier_acces_utilisateur(username, entreprise=None, modules=None):
+        pass
 try:
     from backend.auth_manager import GROUPES_ROLES
 except ImportError:
