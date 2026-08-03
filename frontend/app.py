@@ -55,12 +55,14 @@ from backend.dit_manager import (
 from backend.pdf_exporter import exporter_dossier_pdf
 from backend.nc_manager import (
     lister_nc, charger_nc, creer_nc, sauvegarder_nc,
-    sauvegarder_photo, supprimer_photo, kpi_nc, suggerer_8d_ia,
+    sauvegarder_photo, supprimer_photo, kpi_nc, kpi_nc_filtre,
+    annees_disponibles, suggerer_8d_ia,
     TYPES_DEFAUT as NC_TYPES_DEFAUT,
     PHASES_DETECTION as NC_PHASES,
     NIVEAUX_GRAVITE as NC_GRAVITES,
     STATUTS_NC, PHOTOS_DIR as NC_PHOTOS_DIR,
 )
+from backend.erp_service import chercher_of, erp_configure
 from backend.typologie_manager import (
     charger_typologies, sauvegarder_typologies, lister_typologies,
     creer_ou_maj_typologie, supprimer_typologie, format_traitements_str,
@@ -651,45 +653,75 @@ if page == "⚠️ Non-Conformités":
 
     # ── KPI & Liste ────────────────────────────────────────────────────────────
     if onglet_nc == "📊 KPI & Liste":
-        kpi = kpi_nc()
+        kpi_global = kpi_nc()
 
-        # KPI métriques
+        # KPI métriques globaux
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Total NC", kpi["total"])
-        k2.metric("🟠 Ouvertes", kpi["ouvertes"])
-        k3.metric("🔵 En cours", kpi["en_cours"])
-        k4.metric("🟢 Fermées", kpi["fermees"])
+        k1.metric("Total NC", kpi_global["total"])
+        k2.metric("🟠 Ouvertes", kpi_global["ouvertes"])
+        k3.metric("🔵 En cours", kpi_global["en_cours"])
+        k4.metric("🟢 Fermées", kpi_global["fermees"])
 
-        if kpi["total"] > 0:
+        if kpi_global["total"] > 0:
             st.divider()
-            col_mois, col_type = st.columns([3, 2])
+            st.subheader("📈 Analyse des alertes qualité")
 
-            with col_mois:
-                st.subheader("Alertes par mois")
-                if kpi["par_mois_labels"]:
-                    df_mois = pd.DataFrame({
-                        "Mois": kpi["par_mois_labels"],
-                        "NC":   kpi["par_mois_data"],
-                    }).set_index("Mois")
-                    st.bar_chart(df_mois)
+            # ── Filtres ──────────────────────────────────────────────────────
+            f1, f2, f3 = st.columns([2, 2, 4])
+            with f1:
+                periode = st.selectbox(
+                    "Regrouper par",
+                    ["Mois", "Année"],
+                    key="kpi_periode",
+                )
+            annees = annees_disponibles()
+            with f2:
+                if periode == "Mois":
+                    annee_sel = st.selectbox("Année", annees, key="kpi_annee")
                 else:
-                    st.info("Pas encore de données mensuelles.")
+                    annee_sel = None
+                    st.empty()
+
+            # Calcul KPI filtré
+            kpi = kpi_nc_filtre(
+                periode="mois" if periode == "Mois" else "annee",
+                annee=annee_sel if periode == "Mois" else None,
+            )
+
+            col_graph, col_type = st.columns([3, 2])
+
+            with col_graph:
+                titre = f"Alertes par {'mois' if periode == 'Mois' else 'année'}" + (f" ({annee_sel})" if annee_sel else "")
+                st.markdown(f"**{titre}** — {kpi['total_filtre']} NC")
+                if kpi["labels"]:
+                    df_periode = pd.DataFrame({
+                        "Période": kpi["labels"],
+                        "NC":      kpi["data"],
+                    }).set_index("Période")
+                    st.bar_chart(df_periode, color="#fd7e14")
+                else:
+                    st.info("Aucune NC sur cette période.")
 
             with col_type:
-                st.subheader("Répartition par type")
+                st.markdown("**Par type de défaut**")
                 if kpi["par_type"]:
                     df_type = pd.DataFrame(
                         list(kpi["par_type"].items()), columns=["Type", "Nb"]
                     ).set_index("Type")
-                    st.bar_chart(df_type)
+                    st.bar_chart(df_type, color="#0d6efd")
+                else:
+                    st.info("Aucune donnée.")
 
-            # Gravité
-            if kpi["par_gravite"]:
-                st.subheader("Répartition par gravité")
-                g1, g2, g3 = st.columns(3)
-                g1.metric("🔴 Critique",  kpi["par_gravite"].get("Critique", 0))
-                g2.metric("🟠 Majeure",   kpi["par_gravite"].get("Majeure", 0))
-                g3.metric("🟡 Mineure",   kpi["par_gravite"].get("Mineure", 0))
+            # Gravité + Statut
+            st.divider()
+            gc1, gc2, gc3, gs1, gs2, gs3, gs4 = st.columns(7)
+            gc1.metric("🔴 Critique", kpi["par_gravite"].get("Critique", 0))
+            gc2.metric("🟠 Majeure",  kpi["par_gravite"].get("Majeure", 0))
+            gc3.metric("🟡 Mineure",  kpi["par_gravite"].get("Mineure", 0))
+            gs1.metric("🟠 Ouvertes",    kpi["par_statut"].get("ouverte", 0))
+            gs2.metric("🔵 En cours",    kpi["par_statut"].get("en_cours", 0))
+            gs3.metric("🟢 Fermées",     kpi["par_statut"].get("fermee", 0))
+            gs4.metric("⚫ Abandonnées", kpi["par_statut"].get("abandonnee", 0))
 
         st.divider()
         st.subheader("Liste des NC")
@@ -725,9 +757,54 @@ if page == "⚠️ Non-Conformités":
     elif onglet_nc == "➕ Nouvelle NC":
         st.subheader("Créer une nouvelle Non-Conformité")
 
+        # ── Recherche OF (hors form pour interactivité) ──────────────────────
+        st.markdown("#### 🏭 Ordre de Fabrication (OF)")
+        of_col1, of_col2 = st.columns([3, 1])
+        numero_of = of_col1.text_input(
+            "Numéro d'OF",
+            placeholder="ex. OF-2026-001",
+            key="input_of",
+            help="Entrez le numéro d'OF pour récupérer automatiquement les informations depuis l'ERP" if erp_configure() else "ERP non configuré — saisie manuelle",
+        )
+        info_of = st.session_state.get("info_of_data", {})
+
+        if of_col2.button("🔍 Rechercher", key="btn_chercher_of"):
+            if numero_of.strip():
+                with st.spinner("Recherche dans l'ERP…"):
+                    result = chercher_of(numero_of.strip())
+                if result:
+                    st.session_state["info_of_data"] = result
+                    info_of = result
+                    if result.get("source") == "mock":
+                        st.info("⚠️ ERP non configuré — données de démonstration affichées. Configurez ERP_TYPE et ERP_URL dans .env pour brancher sur Infor/SAP.")
+                    else:
+                        st.success(f"OF trouvé dans l'ERP ({result['source'].upper()})")
+                else:
+                    st.error(f"OF '{numero_of}' introuvable dans l'ERP.")
+            else:
+                st.warning("Saisissez un numéro d'OF.")
+
+        # Affichage infos OF récupérées
+        if info_of:
+            st.markdown("**Informations OF récupérées :**")
+            oi1, oi2, oi3, oi4 = st.columns(4)
+            oi1.markdown(f"**Désignation**\n{info_of.get('designation', '—')}")
+            oi2.markdown(f"**Référence pièce**\n{info_of.get('reference_piece', '—')}")
+            oi3.markdown(f"**Client**\n{info_of.get('client', '—')}")
+            oi4.markdown(f"**Qté**\n{info_of.get('quantite', '—')}")
+            oi_b1, oi_b2 = st.columns(2)
+            oi_b1.markdown(f"**Matière**\n{info_of.get('matiere', '—')}")
+            oi_b2.markdown(f"**Date lancement**\n{info_of.get('date_lancement', '—')}")
+
+        st.divider()
+
         with st.form("form_nouvelle_nc"):
             c1, c2 = st.columns(2)
-            piece_ref  = c1.text_input("Référence pièce / produit", placeholder="ex. REF-2026-001")
+            piece_ref  = c1.text_input(
+                "Référence pièce / produit",
+                value=info_of.get("reference_piece", ""),
+                placeholder="ex. REF-2026-001",
+            )
             dossier_rf = c2.text_input("Dossier qualité lié (optionnel)", placeholder="ex. PIECE-001")
 
             c3, c4, c5 = st.columns(3)
@@ -736,7 +813,12 @@ if page == "⚠️ Non-Conformités":
             gravite    = c5.selectbox("Gravité", NC_GRAVITES, index=1)
 
             type_def   = st.selectbox("Type de défaut", NC_TYPES_DEFAUT)
-            quantite   = st.number_input("Quantité affectée", min_value=1, value=1, step=1)
+            quantite   = st.number_input(
+                "Quantité affectée",
+                min_value=1,
+                value=int(info_of.get("quantite", 1) or 1),
+                step=1,
+            )
             description = st.text_area(
                 "Description de la non-conformité *",
                 height=150,
@@ -749,7 +831,9 @@ if page == "⚠️ Non-Conformités":
                     st.error("La description est obligatoire.")
                 else:
                     nc_cree = creer_nc({
-                        "piece_reference":  piece_ref,
+                        "numero_of":        numero_of.strip(),
+                        "info_of":          info_of,
+                        "piece_reference":  piece_ref or info_of.get("reference_piece", ""),
                         "dossier_ref":      dossier_rf,
                         "date_detection":   str(date_det),
                         "phase_detection":  phase_det,
@@ -758,6 +842,7 @@ if page == "⚠️ Non-Conformités":
                         "quantite_affectee": quantite,
                         "description":      description,
                     }, user["username"])
+                    st.session_state.pop("info_of_data", None)
                     st.success(f"NC **{nc_cree['id']}** créée avec succès !")
                     st.session_state["nc_detail_id"] = nc_cree["id"]
                     st.session_state["onglet_nc"] = "🔍 Détail NC"
@@ -792,6 +877,15 @@ if page == "⚠️ Non-Conformités":
 
         # Fiche NC
         with st.expander("📋 Fiche Non-Conformité", expanded=True):
+            if nc.get("numero_of"):
+                st.markdown(f"**🏭 OF :** `{nc['numero_of']}`")
+                info = nc.get("info_of", {})
+                if info:
+                    fi1, fi2, fi3 = st.columns(3)
+                    fi1.caption(f"**Désignation :** {info.get('designation', '—')}")
+                    fi2.caption(f"**Client :** {info.get('client', '—')}")
+                    fi3.caption(f"**Matière :** {info.get('matiere', '—')}")
+                st.divider()
             st.markdown(f"**Pièce :** {nc.get('piece_reference') or '—'}")
             st.markdown(f"**Dossier lié :** {nc.get('dossier_ref') or '—'}")
             st.markdown(f"**Détecté par :** {nc.get('detecte_par')} le {nc.get('date_detection')}")

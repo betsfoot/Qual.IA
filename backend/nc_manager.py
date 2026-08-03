@@ -68,6 +68,7 @@ def _ecrire_index(index: list[dict]) -> None:
 def _entree_index(nc: dict) -> dict:
     return {
         "id":              nc["id"],
+        "numero_of":       nc.get("numero_of", ""),
         "dossier_ref":     nc.get("dossier_ref", ""),
         "type_defaut":     nc.get("type_defaut", ""),
         "gravite":         nc.get("gravite", ""),
@@ -117,6 +118,8 @@ def creer_nc(data: dict, auteur: str) -> dict:
     maintenant = _maintenant()
     nc = {
         "id": nc_id,
+        "numero_of":        data.get("numero_of", ""),
+        "info_of":          data.get("info_of", {}),
         "dossier_ref":      data.get("dossier_ref", ""),
         "date_detection":   data.get("date_detection", maintenant[:10]),
         "detecte_par":      auteur,
@@ -124,8 +127,8 @@ def creer_nc(data: dict, auteur: str) -> dict:
         "type_defaut":      data.get("type_defaut", ""),
         "description":      data.get("description", ""),
         "gravite":          data.get("gravite", "Mineure"),
-        "piece_reference":  data.get("piece_reference", ""),
-        "quantite_affectee": int(data.get("quantite_affectee", 1) or 1),
+        "piece_reference":  data.get("piece_reference", "") or data.get("info_of", {}).get("reference_piece", ""),
+        "quantite_affectee": int(data.get("quantite_affectee", 1) or data.get("info_of", {}).get("quantite", 1) or 1),
         "photos": [],
         "statut": "ouverte",
         "huit_d": {
@@ -220,6 +223,68 @@ def kpi_nc() -> dict:
         "par_type":        dict(par_type),
         "par_gravite":     dict(par_gravite),
     }
+
+
+# ── KPI filtré ───────────────────────────────────────────────────────────────
+
+def kpi_nc_filtre(periode: str = "mois", annee: int | None = None, mois: int | None = None) -> dict:
+    """
+    KPI NC filtré.
+    periode = "mois"   → toutes les données groupées par mois (pour l'année sélectionnée)
+    periode = "annee"  → toutes les données groupées par année
+    """
+    index = _lire_index()
+    from datetime import datetime as dt
+    annee_courante = dt.now().year
+
+    par_periode: dict[str, int] = defaultdict(int)
+    par_type:    dict[str, int] = defaultdict(int)
+    par_gravite: dict[str, int] = defaultdict(int)
+    par_statut:  dict[str, int] = defaultdict(int)
+
+    for e in index:
+        created = e.get("created_at", "")
+        if not created:
+            continue
+        e_annee = int(created[:4]) if len(created) >= 4 else 0
+        e_mois  = int(created[5:7]) if len(created) >= 7 else 0
+
+        # Filtre
+        if periode == "mois":
+            cible_annee = annee or annee_courante
+            if e_annee != cible_annee:
+                continue
+            cle = f"{e_mois:02d}/{cible_annee}"
+        else:  # par année
+            cle = str(e_annee)
+
+        par_periode[cle] += 1
+        par_type[e.get("type_defaut", "Autre")] += 1
+        par_gravite[e.get("gravite", "Mineure")] += 1
+        par_statut[e.get("statut", "ouverte")] += 1
+
+    labels = sorted(par_periode.keys())
+    return {
+        "labels":      labels,
+        "data":        [par_periode[l] for l in labels],
+        "par_type":    dict(sorted(par_type.items(), key=lambda x: -x[1])),
+        "par_gravite": dict(par_gravite),
+        "par_statut":  dict(par_statut),
+        "total_filtre": sum(par_periode.values()),
+    }
+
+
+def annees_disponibles() -> list[int]:
+    """Retourne les années pour lesquelles des NC existent."""
+    index = _lire_index()
+    annees = set()
+    for e in index:
+        c = e.get("created_at", "")
+        if c and len(c) >= 4:
+            annees.add(int(c[:4]))
+    from datetime import datetime as dt
+    annees.add(dt.now().year)
+    return sorted(annees, reverse=True)
 
 
 # ── IA (Claude) ───────────────────────────────────────────────────────────────
