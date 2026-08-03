@@ -291,6 +291,54 @@ if "user" not in st.session_state:
 
 user = st.session_state["user"]
 
+# ─── Sélection de module (écran d'accueil) ───────────────────────────────────
+
+if "module_actif" not in st.session_state:
+    st.markdown("""
+<style>
+.qia-module-btn {
+    display: block; width: 100%; padding: 2rem 1.5rem;
+    border-radius: 1rem; text-align: center; cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-decoration: none; border: 2px solid transparent;
+}
+.qia-module-btn:hover { transform: translateY(-4px); }
+.qia-module-dev  { background: #EBF0FA; border-color: #1B3A6B; }
+.qia-module-nc   { background: #FFF5E6; border-color: #fd7e14; }
+.qia-module-icon { font-size: 3rem; display: block; margin-bottom: 0.5rem; }
+</style>
+""", unsafe_allow_html=True)
+
+    st.markdown(f"## Bonjour **{user['username']}** 👋")
+    st.markdown("### Quel module souhaitez-vous ouvrir ?")
+    st.write("")
+
+    col_dev, col_nc = st.columns(2, gap="large")
+
+    with col_dev:
+        if st.button(
+            "⚙️ Qualité Développement\n\nAMDEC · Gamme · Plan de Contrôle · Workflow",
+            use_container_width=True,
+            key="btn_module_dev",
+        ):
+            st.session_state["module_actif"] = "dev"
+            st.rerun()
+        st.caption("Création et validation des dossiers techniques produit")
+
+    with col_nc:
+        if st.button(
+            "⚠️ Qualité Documentaire\n\nNC · 8D · Suggestions IA · KPI alertes",
+            use_container_width=True,
+            key="btn_module_nc",
+        ):
+            st.session_state["module_actif"] = "nc"
+            st.rerun()
+        st.caption("Gestion des alertes qualité et résolution de problèmes")
+
+    st.stop()
+
+# Bouton retour accueil dans sidebar (ajouté plus bas)
+
 # ─── Sauvegarde automatique au démarrage (une fois par jour) ─────────────────
 if "backup_demarrage_fait" not in st.session_state:
     rapport_backup = demarrage_app()
@@ -302,6 +350,20 @@ if "backup_demarrage_fait" not in st.session_state:
 with st.sidebar:
     st.markdown("### Qual.IA")
     st.caption("Gestion Qualité Industrielle")
+
+    module_actif = st.session_state.get("module_actif", "dev")
+    if module_actif == "dev":
+        st.info("⚙️ Qualité Développement")
+    else:
+        st.warning("⚠️ Qualité Documentaire")
+
+    if st.button("← Changer de module", use_container_width=True, key="btn_changer_module"):
+        del st.session_state["module_actif"]
+        if "nav_page" in st.session_state:
+            del st.session_state["nav_page"]
+        st.rerun()
+
+    st.divider()
     st.divider()
 
     # ── Utilisateur connecté ──
@@ -371,10 +433,14 @@ with st.sidebar:
     if _nb_notifs > 0:
         st.markdown(f"🔔 **{_nb_notifs} notification(s) non lue(s)**")
 
-    pages_disponibles = ["📊 Tableau de bord", "🏭 Nouveau produit", "📥 Importer un Excel", "📋 Workflow", "⚠️ Non-Conformités", "🔔 Notifications", "📚 Gestion de la base", "🔧 Retouches"]
-    if user["role"] == "admin":
-        pages_disponibles.append("🎨 Typologies")
-        pages_disponibles.append("👥 Utilisateurs")
+    _module = st.session_state.get("module_actif", "dev")
+    if _module == "nc":
+        pages_disponibles = ["⚠️ Non-Conformités"]
+    else:
+        pages_disponibles = ["📊 Tableau de bord", "🏭 Nouveau produit", "📥 Importer un Excel", "📋 Workflow", "🔔 Notifications", "📚 Gestion de la base", "🔧 Retouches"]
+        if user["role"] == "admin":
+            pages_disponibles.append("🎨 Typologies")
+            pages_disponibles.append("👥 Utilisateurs")
 
     # Navigation programmatique depuis le workflow (goto_page posé par un bouton de carte)
     if st.session_state.get("goto_page") in pages_disponibles:
