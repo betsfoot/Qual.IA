@@ -369,16 +369,21 @@ Réponds uniquement avec un JSON brut (pas de markdown) :
 
     try:
         msg = client.messages.create(
-            model=os.getenv("CLAUDE_MODEL", "claude-opus-4-5"),
+            model=os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6"),
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
         )
         contenu = msg.content[0].text.strip()
+        # Nettoyage des balises markdown éventuelles
         if contenu.startswith("```"):
-            contenu = contenu.split("```")[1]
-            if contenu.startswith("json"):
-                contenu = contenu[4:]
+            lignes = contenu.split("\n")
+            contenu = "\n".join(lignes[1:])
+            if contenu.endswith("```"):
+                contenu = contenu[:-3].strip()
         return json.loads(contenu)
+    except json.JSONDecodeError as e:
+        logger.error("Réponse IA non JSON : %s | contenu : %s", e, contenu[:200])
+        return None
     except Exception as e:
         logger.error("Erreur IA suggestions 8D : %s", e)
-        return None
+        return {"_erreur": str(e)}

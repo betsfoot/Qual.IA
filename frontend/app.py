@@ -961,12 +961,14 @@ if page == "⚠️ Non-Conformités":
             if st.button("✨ Générer suggestions IA", key="btn_ia_nc"):
                 with st.spinner("L'IA analyse la NC et l'historique…"):
                     sugg = suggerer_8d_ia(nc)
-                if sugg:
+                if sugg and "_erreur" not in sugg:
                     st.session_state["nc_suggestions_ia"] = sugg
                     st.success(f"Suggestions générées (confiance : **{sugg.get('confiance', '?')}**)")
                     st.info(sugg.get("rationale", ""))
+                elif sugg and "_erreur" in sugg:
+                    st.error(f"Erreur API : {sugg['_erreur']}")
                 else:
-                    st.error("Impossible de générer les suggestions.")
+                    st.error("Impossible de générer les suggestions. Vérifiez que ANTHROPIC_API_KEY est bien configurée dans vos secrets Streamlit Cloud.")
 
             sugg = st.session_state.get("nc_suggestions_ia")
             if sugg:
