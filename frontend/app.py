@@ -645,6 +645,10 @@ if page == "⚠️ Non-Conformités":
 
     st.title("⚠️ Non-Conformités — Alertes qualité")
 
+    # Navigation programmée (ne pas modifier le widget après sa création)
+    if "_goto_onglet_nc" in st.session_state:
+        st.session_state["onglet_nc"] = st.session_state.pop("_goto_onglet_nc")
+
     # ── Sous-navigation ────────────────────────────────────────────────────────
     onglet_nc = st.radio(
         "Onglet NC",
@@ -763,7 +767,7 @@ if page == "⚠️ Non-Conformités":
                 idx = selection.selection.rows[0]
                 nc_id_sel = nc_list[idx]["id"]
                 st.session_state["nc_detail_id"] = nc_id_sel
-                st.session_state["onglet_nc"] = "🔍 Détail NC"
+                st.session_state["_goto_onglet_nc"] = "🔍 Détail NC"
                 st.rerun()
 
     # ── Nouvelle NC ────────────────────────────────────────────────────────────
@@ -861,7 +865,7 @@ if page == "⚠️ Non-Conformités":
                     st.session_state.pop("info_of_data", None)
                     st.success(f"NC **{nc_cree['id']}** créée avec succès !")
                     st.session_state["nc_detail_id"] = nc_cree["id"]
-                    st.session_state["onglet_nc"] = "🔍 Détail NC"
+                    st.session_state["_goto_onglet_nc"] = "🔍 Détail NC"
                     st.rerun()
 
     # ── Détail NC ──────────────────────────────────────────────────────────────
