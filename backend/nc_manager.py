@@ -42,6 +42,15 @@ PHASES_DETECTION = [
 
 NIVEAUX_GRAVITE = ["Mineure", "Majeure", "Critique"]
 
+CATEGORIES_NC = [
+    "NC Interne",
+    "NC Fournisseur",
+    "NC Client / Réclamation",
+    "NC Audit",
+    "NC Sécurité / EHS",
+    "Autre",
+]
+
 STATUTS_NC = {
     "ouverte":    "🟠 Ouverte",
     "en_cours":   "🔵 En cours",
@@ -68,6 +77,7 @@ def _ecrire_index(index: list[dict]) -> None:
 def _entree_index(nc: dict) -> dict:
     return {
         "id":              nc["id"],
+        "categorie":       nc.get("categorie", "NC Interne"),
         "numero_of":       nc.get("numero_of", ""),
         "dossier_ref":     nc.get("dossier_ref", ""),
         "type_defaut":     nc.get("type_defaut", ""),
@@ -118,6 +128,7 @@ def creer_nc(data: dict, auteur: str) -> dict:
     maintenant = _maintenant()
     nc = {
         "id": nc_id,
+        "categorie":        data.get("categorie", "NC Interne"),
         "numero_of":        data.get("numero_of", ""),
         "info_of":          data.get("info_of", {}),
         "dossier_ref":      data.get("dossier_ref", ""),
@@ -237,10 +248,11 @@ def kpi_nc_filtre(periode: str = "mois", annee: int | None = None, mois: int | N
     from datetime import datetime as dt
     annee_courante = dt.now().year
 
-    par_periode: dict[str, int] = defaultdict(int)
-    par_type:    dict[str, int] = defaultdict(int)
-    par_gravite: dict[str, int] = defaultdict(int)
-    par_statut:  dict[str, int] = defaultdict(int)
+    par_periode:  dict[str, int] = defaultdict(int)
+    par_type:     dict[str, int] = defaultdict(int)
+    par_gravite:  dict[str, int] = defaultdict(int)
+    par_statut:   dict[str, int] = defaultdict(int)
+    par_categorie: dict[str, int] = defaultdict(int)
 
     for e in index:
         created = e.get("created_at", "")
@@ -262,15 +274,17 @@ def kpi_nc_filtre(periode: str = "mois", annee: int | None = None, mois: int | N
         par_type[e.get("type_defaut", "Autre")] += 1
         par_gravite[e.get("gravite", "Mineure")] += 1
         par_statut[e.get("statut", "ouverte")] += 1
+        par_categorie[e.get("categorie", "NC Interne")] += 1
 
     labels = sorted(par_periode.keys())
     return {
-        "labels":      labels,
-        "data":        [par_periode[l] for l in labels],
-        "par_type":    dict(sorted(par_type.items(), key=lambda x: -x[1])),
-        "par_gravite": dict(par_gravite),
-        "par_statut":  dict(par_statut),
-        "total_filtre": sum(par_periode.values()),
+        "labels":        labels,
+        "data":          [par_periode[l] for l in labels],
+        "par_type":      dict(sorted(par_type.items(), key=lambda x: -x[1])),
+        "par_gravite":   dict(par_gravite),
+        "par_statut":    dict(par_statut),
+        "par_categorie": dict(sorted(par_categorie.items(), key=lambda x: -x[1])),
+        "total_filtre":  sum(par_periode.values()),
     }
 
 

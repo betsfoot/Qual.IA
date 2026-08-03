@@ -60,7 +60,7 @@ from backend.nc_manager import (
     TYPES_DEFAUT as NC_TYPES_DEFAUT,
     PHASES_DETECTION as NC_PHASES,
     NIVEAUX_GRAVITE as NC_GRAVITES,
-    STATUTS_NC, PHOTOS_DIR as NC_PHOTOS_DIR,
+    CATEGORIES_NC, STATUTS_NC, PHOTOS_DIR as NC_PHOTOS_DIR,
 )
 from backend.erp_service import chercher_of, erp_configure
 from backend.typologie_manager import (
@@ -712,6 +712,14 @@ if page == "⚠️ Non-Conformités":
                 else:
                     st.info("Aucune donnée.")
 
+            # Graphique par catégorie
+            if kpi.get("par_categorie"):
+                st.markdown("**Par catégorie de NC**")
+                df_cat = pd.DataFrame(
+                    list(kpi["par_categorie"].items()), columns=["Catégorie", "Nb"]
+                ).set_index("Catégorie")
+                st.bar_chart(df_cat, color="#198754")
+
             # Gravité + Statut
             st.divider()
             gc1, gc2, gc3, gs1, gs2, gs3, gs4 = st.columns(7)
@@ -737,8 +745,10 @@ if page == "⚠️ Non-Conformités":
         if not nc_list:
             st.success("Aucune NC" + (f" avec le statut sélectionné" if filtre_statut != "Tous" else "") + ".")
         else:
-            df_nc = pd.DataFrame(nc_list)[["id", "type_defaut", "phase_detection", "gravite", "statut", "created_at", "dossier_ref"]]
-            df_nc.columns = ["ID", "Type défaut", "Phase", "Gravité", "Statut", "Date", "Dossier lié"]
+            cols_dispo = ["id", "categorie", "type_defaut", "phase_detection", "gravite", "statut", "numero_of", "created_at"]
+            cols_dispo = [c for c in cols_dispo if c in pd.DataFrame(nc_list).columns]
+            df_nc = pd.DataFrame(nc_list)[cols_dispo]
+            df_nc.columns = [{"id":"ID","categorie":"Catégorie","type_defaut":"Type défaut","phase_detection":"Phase","gravite":"Gravité","statut":"Statut","numero_of":"OF","created_at":"Date"}.get(c,c) for c in cols_dispo]
             df_nc["Date"] = df_nc["Date"].str[:10]
             df_nc["Statut"] = df_nc["Statut"].map(lambda s: STATUTS_NC.get(s, s))
 
@@ -812,7 +822,9 @@ if page == "⚠️ Non-Conformités":
             phase_det  = c4.selectbox("Phase de détection", NC_PHASES)
             gravite    = c5.selectbox("Gravité", NC_GRAVITES, index=1)
 
-            type_def   = st.selectbox("Type de défaut", NC_TYPES_DEFAUT)
+            ca1, ca2 = st.columns(2)
+            categorie  = ca1.selectbox("Catégorie NC", CATEGORIES_NC)
+            type_def   = ca2.selectbox("Type de défaut", NC_TYPES_DEFAUT)
             quantite   = st.number_input(
                 "Quantité affectée",
                 min_value=1,
@@ -831,6 +843,7 @@ if page == "⚠️ Non-Conformités":
                     st.error("La description est obligatoire.")
                 else:
                     nc_cree = creer_nc({
+                        "categorie":        categorie,
                         "numero_of":        numero_of.strip(),
                         "info_of":          info_of,
                         "piece_reference":  piece_ref or info_of.get("reference_piece", ""),
@@ -886,6 +899,8 @@ if page == "⚠️ Non-Conformités":
                     fi2.caption(f"**Client :** {info.get('client', '—')}")
                     fi3.caption(f"**Matière :** {info.get('matiere', '—')}")
                 st.divider()
+            if nc.get("categorie"):
+                st.markdown(f"**Catégorie :** `{nc['categorie']}`")
             st.markdown(f"**Pièce :** {nc.get('piece_reference') or '—'}")
             st.markdown(f"**Dossier lié :** {nc.get('dossier_ref') or '—'}")
             st.markdown(f"**Détecté par :** {nc.get('detecte_par')} le {nc.get('date_detection')}")
